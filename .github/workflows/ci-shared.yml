@@ -1,0 +1,129 @@
+name: CI (Shared)
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version'
+        type: string
+        default: '22.x'
+      package-manager:
+        description: 'Package manager (npm or bun)'
+        type: string
+        default: 'npm'
+      build-command:
+        description: 'Build command to run'
+        type: string
+        default: 'npm run build'
+      lint-command:
+        description: 'Lint/typecheck command to run'
+        type: string
+        default: 'npm run check'
+      has-tests:
+        description: 'Whether to run the test job'
+        type: boolean
+        default: false
+
+jobs:
+  lint-and-check:
+    name: Lint and Type Check
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun install
+          else
+            npm ci
+          fi
+
+      - name: Lint and type check
+        run: ${{ inputs.lint-command }}
+
+  build:
+    name: Build
+    runs-on: [self-hosted, Linux, X64]
+    needs: lint-and-check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun install
+          else
+            npm ci
+          fi
+
+      - name: Build project
+        run: ${{ inputs.build-command }}
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  test:
+    name: Test
+    runs-on: [self-hosted, Linux, X64]
+    needs: lint-and-check
+    if: inputs.has-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun install
+          else
+            npm ci
+          fi
+
+      - name: Run tests
+        run: |
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun test
+          else
+            npm test
+          fi
