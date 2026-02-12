@@ -27,7 +27,7 @@ on:
 jobs:
   lint-and-check:
     name: Lint and Type Check
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     needs: lint-and-check
     steps:
       - name: Checkout code
@@ -94,7 +94,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     needs: lint-and-check
     if: inputs.has-tests
     steps:
