@@ -498,7 +498,7 @@ ${table}`);
 
 ---
 
-*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) \u2014 last run: ${now} UTC*`);
+*Updated automatically every hour from [Linear](https://linear.app/wopr) \u2014 last run: ${now} UTC*`);
 
   const readme = sections.join("\n\n") + "\n";
 
