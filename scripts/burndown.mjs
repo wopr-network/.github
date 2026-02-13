@@ -787,7 +787,7 @@ async function generateScopeCreepCharts(milestones, issues) {
     };
 
     const url = await quickchartShortUrl(config, 360, 200);
-    if (url) charts.push(`![${name}](${url})`);
+    if (url) charts.push(`<img src="${url}" alt="${name}" width="360">`);
   }
 
   if (charts.length === 0) return "";
