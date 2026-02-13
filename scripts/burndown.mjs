@@ -869,6 +869,9 @@ async function generateConfidenceCone(issues) {
         }],
       },
       legend: { position: "bottom" },
+      layout: {
+        padding: { top: 20, right: 20 },
+      },
       annotation: {
         annotations: [
           // "Today" vertical line
@@ -876,7 +879,7 @@ async function generateConfidenceCone(issues) {
             type: "line",
             mode: "vertical",
             scaleID: "x-axis-0",
-            value: labels[0],
+            value: labels[1] || labels[0],
             borderColor: "rgba(99,102,241,0.5)",
             borderWidth: 2,
             borderDash: [4, 4],
@@ -884,26 +887,20 @@ async function generateConfidenceCone(issues) {
               enabled: true,
               content: "Today",
               position: "top",
+              yAdjust: 10,
               backgroundColor: "rgba(99,102,241,0.8)",
               fontSize: 11,
             },
           },
-          // Zero line
+          // "Done" at zero
           {
             type: "line",
             mode: "horizontal",
             scaleID: "y-axis-0",
             value: 0,
-            borderColor: "#10b981",
+            borderColor: "rgba(16,185,129,0.4)",
             borderWidth: 1,
             borderDash: [4, 4],
-            label: {
-              enabled: true,
-              content: "Done!",
-              position: "right",
-              backgroundColor: "rgba(16,185,129,0.8)",
-              fontSize: 11,
-            },
           },
         ],
       },
