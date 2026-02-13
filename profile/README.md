@@ -12,7 +12,7 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-7cec7845-5dba-41c5-bef6-36520c150623)
+![Projection](https://quickchart.io/chart/render/zf-b9350b8a-817e-4376-b620-2ea911f4d6dc)
 
 ## Velocity
 
@@ -62,4 +62,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:23 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:28 UTC*
