@@ -131,12 +131,17 @@ async function fetchAllIssues() {
   return issues;
 }
 
-function getHourLabel(isoStr) {
+function getHourLabel(isoStr, prevIsoStr) {
   const d = new Date(isoStr);
-  const month = d.toLocaleString("en", { month: "short" });
   const day = d.getDate();
   const hour = d.getHours().toString().padStart(2, "0");
-  return `${month} ${day} ${hour}:00`;
+
+  // Show month+day on first label or when the day changes
+  if (!prevIsoStr || new Date(prevIsoStr).getDate() !== day) {
+    const month = d.toLocaleString("en", { month: "short" });
+    return `${month} ${day} ${hour}h`;
+  }
+  return `${hour}h`;
 }
 
 function buildHourlySlots(earliest) {
@@ -151,9 +156,9 @@ function buildHourlySlots(earliest) {
     current.setHours(current.getHours() + 1);
   }
 
-  // Sample to max ~48 labels for readability
-  if (slots.length > 48) {
-    const step = Math.ceil(slots.length / 48);
+  // Sample to max ~20 labels for readability
+  if (slots.length > 20) {
+    const step = Math.ceil(slots.length / 20);
     const sampled = [];
     for (let i = 0; i < slots.length; i += step) {
       sampled.push(slots[i]);
@@ -204,7 +209,7 @@ function buildBurnupData(issues) {
   }
 
   const slots = buildHourlySlots(earliest);
-  const slotLabels = slots.map((s) => getHourLabel(s));
+  const slotLabels = slots.map((s, i) => getHourLabel(s, i > 0 ? slots[i - 1] : null));
 
   // Overall burn-up: scope line + done line
   const scopeLine = slots.map((slotIso) => {

@@ -7,10 +7,10 @@
 ```mermaid
 xychart-beta
   title "WOPR Burn-Up — Scope vs Completed (hourly)"
-  x-axis ["Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 22:00", "Feb 13 00:00", "Feb 13 02:00", "Feb 13 04:00", "Feb 13 06:00"]
+  x-axis ["Feb 10 10h", "14h", "18h", "22h", "Feb 11 02h", "06h", "10h", "14h", "18h", "22h", "Feb 12 02h", "06h", "10h", "14h", "18h", "22h"]
   y-axis "Issues" 0 --> 319
-  line [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 36, 89, 147, 147, 161, 216, 217, 249, 249, 249, 249, 249, 249, 249, 260, 287, 289, 290]
-  line [1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 14, 29, 57, 75, 92, 115, 115, 145, 145, 145, 145, 145, 145, 150, 173, 197, 197, 198]
+  line [19, 19, 19, 19, 19, 19, 19, 89, 147, 216, 249, 249, 249, 249, 287, 290]
+  line [1, 1, 1, 4, 4, 4, 4, 29, 75, 115, 145, 145, 145, 150, 197, 198]
 ```
 
 > **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work
@@ -33,9 +33,9 @@ xychart-beta
 ```mermaid
 xychart-beta
   title "Velocity — Issues Closed per Hour"
-  x-axis ["Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 22:00", "Feb 13 00:00", "Feb 13 02:00", "Feb 13 04:00", "Feb 13 06:00"]
+  x-axis ["Feb 10 10h", "14h", "18h", "22h", "Feb 11 02h", "06h", "10h", "14h", "18h", "22h", "Feb 12 02h", "06h", "10h", "14h", "18h", "22h"]
   y-axis "Closed" 0 --> 21
-  bar [1, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 11, 8, 11, 15, 13, 0, 18, 0, 0, 0, 0, 0, 1, 17, 11, 0, 0]
+  bar [1, 0, 0, 3, 0, 0, 0, 11, 11, 13, 18, 0, 0, 1, 11, 0]
 ```
 
 ## Progress by Repo
@@ -100,4 +100,4 @@ pie
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:04 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:06 UTC*
