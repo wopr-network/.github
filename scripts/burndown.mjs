@@ -676,80 +676,67 @@ function generatePriorityChart(issues) {
   return `![Priority](${quickchartUrl(config, 400, 250)})`;
 }
 
-async function generateScopeCreepChart(issues, slots, slotLabels) {
-  // Cumulative created vs cumulative closed over time
-  const cumulativeCreated = slots.map((slotIso) => {
-    const slotEnd = new Date(slotIso);
-    slotEnd.setHours(slotEnd.getHours() + 1);
-    let count = 0;
-    for (const issue of issues) {
-      if (new Date(issue.createdAt) <= slotEnd) count++;
+async function generateScopeCreepChart(milestones, issues) {
+  const now = new Date();
+  const windowMs = 7 * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(now.getTime() - windowMs);
+
+  // Per-milestone: issues created vs closed in last 7 days
+  const msData = {};
+  for (const issue of issues) {
+    const ms = issue.projectMilestone;
+    if (!ms || ms.name.startsWith("[DELETED]")) continue;
+    if (!msData[ms.name]) msData[ms.name] = { added: 0, closed: 0 };
+
+    if (new Date(issue.createdAt) >= windowStart) {
+      msData[ms.name].added++;
     }
-    return count;
-  });
-
-  const cumulativeClosed = slots.map((slotIso) => {
-    const slotEnd = new Date(slotIso);
-    slotEnd.setHours(slotEnd.getHours() + 1);
-    let count = 0;
-    for (const issue of issues) {
-      if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) count++;
+    if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
+      msData[ms.name].closed++;
     }
-    return count;
-  });
+  }
 
-  // Gap = created - closed (the backlog)
-  const gap = cumulativeCreated.map((c, i) => c - cumulativeClosed[i]);
+  // Net change = added - closed. Positive = scope growing, negative = burning down
+  const entries = Object.entries(msData)
+    .map(([name, d]) => ({ name, added: d.added, closed: d.closed, net: d.added - d.closed }))
+    .filter((e) => e.added > 0 || e.closed > 0) // skip inactive milestones
+    .sort((a, b) => b.net - a.net); // worst creep on top
 
-  const step = Math.max(1, Math.ceil(slotLabels.length / 12));
-  const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
+  if (entries.length === 0) return "";
 
   const config = {
-    type: "line",
+    type: "horizontalBar",
     data: {
-      labels: sparseLabels,
+      labels: entries.map((e) => e.name),
       datasets: [
         {
-          label: "Created",
-          data: cumulativeCreated,
-          borderColor: "#6366f1",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderWidth: 2,
-          fill: false,
+          label: "Added (7d)",
+          data: entries.map((e) => e.added),
+          backgroundColor: "#ef4444",
         },
         {
-          label: "Closed",
-          data: cumulativeClosed,
-          borderColor: "#10b981",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderWidth: 2,
-          fill: false,
-        },
-        {
-          label: "Backlog Gap",
-          data: gap,
-          borderColor: "#ef4444",
-          backgroundColor: "rgba(239,68,68,0.08)",
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [4, 3],
-          fill: true,
+          label: "Closed (7d)",
+          data: entries.map((e) => -e.closed),
+          backgroundColor: "#10b981",
         },
       ],
     },
     options: {
-      title: { display: true, text: "Scope Creep — Created vs Closed", fontSize: 16 },
+      title: { display: true, text: "Scope Creep by Milestone — Last 7 Days", fontSize: 16 },
       scales: {
-        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
-        yAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Issues (cumulative)" } }],
+        xAxes: [{
+          stacked: true,
+          ticks: { fontSize: 10 },
+          scaleLabel: { display: true, labelString: "\u2190 Closing    |    Growing \u2192" },
+        }],
+        yAxes: [{ stacked: true, ticks: { fontSize: 11 } }],
       },
       legend: { position: "bottom" },
     },
   };
 
-  const url = await quickchartShortUrl(config, 800, 300);
+  const height = Math.max(250, entries.length * 32 + 100);
+  const url = await quickchartShortUrl(config, 700, height);
   if (!url) return "";
   return `![Scope Creep](${url})`;
 }
@@ -1177,8 +1164,8 @@ async function main() {
   const milestoneChart = generateMilestoneChart(milestoneData);
   const projectionChart = await generateProjectionChart(milestoneData, issues);
 
-  // Chart 3: Scope Creep Race
-  const scopeCreepChart = await generateScopeCreepChart(issues, slots, slotLabels);
+  // Chart 3: Scope Creep by Milestone
+  const scopeCreepChart = await generateScopeCreepChart(milestoneData, issues);
 
   // Chart 4: Confidence Cone
   const confidenceCone = await generateConfidenceCone(issues);
