@@ -780,38 +780,26 @@ async function generateConfidenceCone(issues) {
   const remaining = total - done;
   if (remaining === 0) return "";
 
-  // Compute daily closure rates over the full history
+  // Compute closure counts for rolling windows
   const closureDates = issues
     .filter((i) => i.completedAt)
-    .map((i) => new Date(i.completedAt))
-    .sort((a, b) => a - b);
+    .map((i) => new Date(i.completedAt));
 
   if (closureDates.length < 2) return "";
 
-  // Build daily closure counts over the last 14 days (more data for percentiles)
-  const windowDays = 14;
-  const dailyRates = [];
-  for (let d = 0; d < windowDays; d++) {
-    const dayStart = new Date(now.getTime() - (d + 1) * 24 * 60 * 60 * 1000);
-    const dayEnd = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
+  const countInWindow = (days) => {
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     let count = 0;
     for (const dt of closureDates) {
-      if (dt >= dayStart && dt < dayEnd) count++;
+      if (dt >= cutoff) count++;
     }
-    dailyRates.push(count);
-  }
-
-  dailyRates.sort((a, b) => a - b);
-
-  // Percentiles: optimistic = 90th, expected = 50th, pessimistic = 25th
-  const p = (arr, pct) => {
-    const idx = Math.floor(pct * (arr.length - 1));
-    return Math.max(1, arr[idx]); // min 1 issue/day
+    return Math.max(1, count) / days; // issues/day, floor of 1 total
   };
 
-  const optimistic = p(dailyRates, 0.9);
-  const expected = p(dailyRates, 0.5);
-  const pessimistic = p(dailyRates, 0.25);
+  // Rolling window averages: recent bursts show up in short windows
+  const optimistic = countInWindow(3);   // last 3 days
+  const expected = countInWindow(7);     // last 7 days
+  const pessimistic = countInWindow(14); // last 14 days
 
   // Project days to completion for each rate
   const optDays = Math.ceil(remaining / optimistic);
@@ -845,7 +833,7 @@ async function generateConfidenceCone(issues) {
       labels,
       datasets: [
         {
-          label: `Optimistic (${optimistic}/day)`,
+          label: `Optimistic — 3-day avg (${Math.round(optimistic * 10) / 10}/day)`,
           data: optData,
           borderColor: "#10b981",
           backgroundColor: "rgba(16,185,129,0.08)",
@@ -854,7 +842,7 @@ async function generateConfidenceCone(issues) {
           fill: false,
         },
         {
-          label: `Expected (${expected}/day)`,
+          label: `Expected — 7-day avg (${Math.round(expected * 10) / 10}/day)`,
           data: expData,
           borderColor: "#6366f1",
           backgroundColor: "rgba(99,102,241,0.1)",
@@ -863,7 +851,7 @@ async function generateConfidenceCone(issues) {
           fill: false,
         },
         {
-          label: `Pessimistic (${pessimistic}/day)`,
+          label: `Pessimistic — 14-day avg (${Math.round(pessimistic * 10) / 10}/day)`,
           data: pesData,
           borderColor: "#ef4444",
           backgroundColor: "rgba(239,68,68,0.08)",
