@@ -13,12 +13,24 @@
  * Usage: node scripts/burndown.mjs
  */
 
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+
 const LINEAR_API = "https://api.linear.app/graphql";
 const TEAM_ID = "dca92d56-659a-4ee9-a8d1-69d1f0de19e0";
-const API_KEY = process.env.LINEAR_API_KEY;
+
+function loadApiKey() {
+  if (process.env.LINEAR_API_KEY) return process.env.LINEAR_API_KEY;
+  const keyFile = join(homedir(), ".config", "wopr", "linear-api-key");
+  if (existsSync(keyFile)) return readFileSync(keyFile, "utf8").trim();
+  return null;
+}
+
+const API_KEY = loadApiKey();
 
 if (!API_KEY) {
-  console.error("LINEAR_API_KEY not set");
+  console.error("LINEAR_API_KEY not set (env or ~/.config/wopr/linear-api-key)");
   process.exit(1);
 }
 
@@ -289,7 +301,7 @@ function buildSummaryStats(issues) {
   return { total, done, inProgress, backlog };
 }
 
-function generateBurnupChart(slotLabels, scopeLine, doneLine) {
+async function generateBurnupChart(slotLabels, scopeLine, doneLine) {
   // Show every Nth label to avoid crowding
   const step = Math.max(1, Math.ceil(slotLabels.length / 12));
   const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
@@ -329,7 +341,9 @@ function generateBurnupChart(slotLabels, scopeLine, doneLine) {
     },
   };
 
-  return `![Burn-Up Chart](${quickchartUrl(config, 800, 300)})`;
+  const url = await quickchartShortUrl(config, 800, 300);
+  if (!url) return "";
+  return `![Burn-Up Chart](${url})`;
 }
 
 function generateTable(repoStats) {
@@ -675,6 +689,362 @@ function generatePriorityChart(issues) {
   return `![Priority](${quickchartUrl(config, 400, 250)})`;
 }
 
+async function generateScopeCreepChart(issues, slots, slotLabels) {
+  // Cumulative created vs cumulative closed over time
+  const cumulativeCreated = slots.map((slotIso) => {
+    const slotEnd = new Date(slotIso);
+    slotEnd.setHours(slotEnd.getHours() + 1);
+    let count = 0;
+    for (const issue of issues) {
+      if (new Date(issue.createdAt) <= slotEnd) count++;
+    }
+    return count;
+  });
+
+  const cumulativeClosed = slots.map((slotIso) => {
+    const slotEnd = new Date(slotIso);
+    slotEnd.setHours(slotEnd.getHours() + 1);
+    let count = 0;
+    for (const issue of issues) {
+      if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) count++;
+    }
+    return count;
+  });
+
+  // Gap = created - closed (the backlog)
+  const gap = cumulativeCreated.map((c, i) => c - cumulativeClosed[i]);
+
+  const step = Math.max(1, Math.ceil(slotLabels.length / 12));
+  const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
+
+  const config = {
+    type: "line",
+    data: {
+      labels: sparseLabels,
+      datasets: [
+        {
+          label: "Created",
+          data: cumulativeCreated,
+          borderColor: "#6366f1",
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 2,
+          fill: false,
+        },
+        {
+          label: "Closed",
+          data: cumulativeClosed,
+          borderColor: "#10b981",
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 2,
+          fill: false,
+        },
+        {
+          label: "Backlog Gap",
+          data: gap,
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239,68,68,0.08)",
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Scope Creep — Created vs Closed", fontSize: 16 },
+      scales: {
+        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
+        yAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Issues (cumulative)" } }],
+      },
+      legend: { position: "bottom" },
+    },
+  };
+
+  const url = await quickchartShortUrl(config, 800, 300);
+  if (!url) return "";
+  return `![Scope Creep](${url})`;
+}
+
+async function generateConfidenceCone(issues) {
+  const now = new Date();
+
+  // Total remaining
+  const total = issues.length;
+  let done = 0;
+  for (const issue of issues) {
+    const type = issue.state.type;
+    if (type === "completed" || type === "cancelled") done++;
+  }
+  const remaining = total - done;
+  if (remaining === 0) return "";
+
+  // Compute daily closure rates over the full history
+  const closureDates = issues
+    .filter((i) => i.completedAt)
+    .map((i) => new Date(i.completedAt))
+    .sort((a, b) => a - b);
+
+  if (closureDates.length < 2) return "";
+
+  // Build daily closure counts over the last 14 days (more data for percentiles)
+  const windowDays = 14;
+  const dailyRates = [];
+  for (let d = 0; d < windowDays; d++) {
+    const dayStart = new Date(now.getTime() - (d + 1) * 24 * 60 * 60 * 1000);
+    const dayEnd = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
+    let count = 0;
+    for (const dt of closureDates) {
+      if (dt >= dayStart && dt < dayEnd) count++;
+    }
+    dailyRates.push(count);
+  }
+
+  dailyRates.sort((a, b) => a - b);
+
+  // Percentiles: optimistic = 90th, expected = 50th, pessimistic = 25th
+  const p = (arr, pct) => {
+    const idx = Math.floor(pct * (arr.length - 1));
+    return Math.max(1, arr[idx]); // min 1 issue/day
+  };
+
+  const optimistic = p(dailyRates, 0.9);
+  const expected = p(dailyRates, 0.5);
+  const pessimistic = p(dailyRates, 0.25);
+
+  // Project days to completion for each rate
+  const optDays = Math.ceil(remaining / optimistic);
+  const expDays = Math.ceil(remaining / expected);
+  const pesDays = Math.ceil(remaining / pessimistic);
+  const maxDays = Math.min(pesDays, 120); // cap at 120 days
+
+  // Build the datasets: remaining issues declining over future days
+  const labels = [];
+  const optData = [];
+  const expData = [];
+  const pesData = [];
+
+  // Add "Today" as first point
+  const labelStep = Math.max(1, Math.ceil(maxDays / 16));
+  for (let d = 0; d <= maxDays; d++) {
+    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+    if (d % labelStep === 0) {
+      labels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()}`);
+    } else {
+      labels.push("");
+    }
+    optData.push(Math.max(0, remaining - optimistic * d));
+    expData.push(Math.max(0, remaining - expected * d));
+    pesData.push(Math.max(0, remaining - pessimistic * d));
+  }
+
+  const config = {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `Optimistic (${optimistic}/day)`,
+          data: optData,
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16,185,129,0.08)",
+          pointRadius: 0,
+          borderWidth: 2,
+          fill: false,
+        },
+        {
+          label: `Expected (${expected}/day)`,
+          data: expData,
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99,102,241,0.1)",
+          pointRadius: 0,
+          borderWidth: 2.5,
+          fill: false,
+        },
+        {
+          label: `Pessimistic (${pessimistic}/day)`,
+          data: pesData,
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239,68,68,0.08)",
+          pointRadius: 0,
+          borderWidth: 2,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Confidence Cone — When Are We Done?", fontSize: 16 },
+      scales: {
+        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
+        yAxes: [{
+          ticks: { beginAtZero: true },
+          scaleLabel: { display: true, labelString: "Remaining Issues" },
+        }],
+      },
+      legend: { position: "bottom" },
+      annotation: {
+        annotations: [{
+          type: "line",
+          mode: "horizontal",
+          scaleID: "y-axis-0",
+          value: 0,
+          borderColor: "#10b981",
+          borderWidth: 1,
+          borderDash: [4, 4],
+        }],
+      },
+    },
+  };
+
+  const url = await quickchartShortUrl(config, 800, 350);
+  if (!url) return "";
+  return `![Confidence Cone](${url})`;
+}
+
+async function generatePriorityProjection(issues) {
+  const now = new Date();
+  const windowMs = 7 * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(now.getTime() - windowMs);
+
+  // Group by priority
+  const priorities = {};
+  for (const issue of issues) {
+    const name = PRIORITY_NAMES[issue.priority] || "None";
+    if (!priorities[name]) priorities[name] = { total: 0, done: 0, recentDone: 0, issues: [] };
+    priorities[name].total++;
+    priorities[name].issues.push(issue);
+    const type = issue.state.type;
+    if (type === "completed" || type === "cancelled") {
+      priorities[name].done++;
+      if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
+        priorities[name].recentDone++;
+      }
+    }
+  }
+
+  // Only chart priorities with remaining issues, in severity order
+  const order = ["Urgent", "High", "Normal", "Low", "None"];
+  const colors = { Urgent: "#ef4444", High: "#f97316", Normal: "#eab308", Low: "#3b82f6", None: "#9ca3af" };
+  const incomplete = order.filter((p) => priorities[p] && priorities[p].total - priorities[p].done > 0);
+
+  if (incomplete.length === 0) return "";
+
+  // Find earliest issue creation for history
+  let earliest = now;
+  for (const issue of issues) {
+    const d = new Date(issue.createdAt);
+    if (d < earliest) earliest = d;
+  }
+
+  const historySlots = buildDailySlots(earliest);
+  const datasets = [];
+  let maxProjectedDays = 0;
+
+  for (const pName of incomplete) {
+    const stats = priorities[pName];
+    const color = colors[pName];
+    const remaining = stats.total - stats.done;
+    const velocity = Math.max(1, stats.recentDone) / 7;
+
+    // Historical: remaining per day for this priority
+    const histData = historySlots.map((day) => {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      let created = 0;
+      let doneCount = 0;
+      for (const issue of stats.issues) {
+        if (new Date(issue.createdAt) <= dayEnd) {
+          created++;
+          if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) doneCount++;
+          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+            if (dayEnd >= now) doneCount++;
+          }
+        }
+      }
+      return created - doneCount;
+    });
+
+    let projDays = Math.ceil(remaining / velocity);
+    if (projDays > 90) projDays = 90;
+    if (projDays > maxProjectedDays) maxProjectedDays = projDays;
+
+    // Projected data
+    const projData = [];
+    for (let d = 0; d < historySlots.length - 1; d++) projData.push(null);
+    projData.push(remaining);
+    for (let d = 1; d <= projDays; d++) {
+      projData.push(Math.max(0, Math.round((remaining - velocity * d) * 10) / 10));
+    }
+
+    // Solid historical line
+    datasets.push({
+      label: pName,
+      data: [...histData, ...Array(projDays).fill(null)],
+      borderColor: color,
+      backgroundColor: "transparent",
+      pointRadius: 0,
+      borderWidth: 2.5,
+      fill: false,
+    });
+
+    // Dashed projected line
+    datasets.push({
+      label: "",
+      data: projData,
+      borderColor: color,
+      backgroundColor: "transparent",
+      pointRadius: 0,
+      borderWidth: 2,
+      borderDash: [6, 3],
+      fill: false,
+    });
+  }
+
+  // Labels
+  const allLabels = [];
+  const labelStep = Math.max(1, Math.ceil((historySlots.length + maxProjectedDays) / 16));
+
+  for (let i = 0; i < historySlots.length; i++) {
+    if (i % labelStep === 0) {
+      const d = historySlots[i];
+      allLabels.push(`${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`);
+    } else {
+      allLabels.push("");
+    }
+  }
+  for (let d = 1; d <= maxProjectedDays; d++) {
+    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+    const idx = historySlots.length + d - 1;
+    if (idx % labelStep === 0) {
+      allLabels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()}`);
+    } else {
+      allLabels.push("");
+    }
+  }
+
+  const config = {
+    type: "line",
+    data: { labels: allLabels, datasets },
+    options: {
+      title: { display: true, text: "Priority Burndown — When Is Each Severity Done?", fontSize: 16 },
+      scales: {
+        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
+        yAxes: [{
+          ticks: { beginAtZero: true },
+          scaleLabel: { display: true, labelString: "Remaining Issues" },
+        }],
+      },
+      legend: { position: "bottom" },
+      spanGaps: false,
+    },
+  };
+
+  const url = await quickchartShortUrl(config, 900, 400);
+  if (!url) return "";
+  return `![Priority Burndown](${url})`;
+}
+
 function generateStateChart(stats) {
   const config = {
     type: "doughnut",
@@ -708,21 +1078,30 @@ async function main() {
   const stats = buildSummaryStats(issues);
 
   // Chart 1: Burn-Up
-  const burnup = generateBurnupChart(slotLabels, scopeLine, doneLine);
+  const burnup = await generateBurnupChart(slotLabels, scopeLine, doneLine);
 
   // Chart 2: Milestone Progress + Projection
   const milestoneData = buildMilestoneData(issues);
   const milestoneChart = generateMilestoneChart(milestoneData);
   const projectionChart = await generateProjectionChart(milestoneData, issues);
 
-  // Chart 3: Velocity (per hour)
+  // Chart 3: Scope Creep Race
+  const scopeCreepChart = await generateScopeCreepChart(issues, slots, slotLabels);
+
+  // Chart 4: Confidence Cone
+  const confidenceCone = await generateConfidenceCone(issues);
+
+  // Chart 5: Priority Burndown Projection
+  const priorityProjection = await generatePriorityProjection(issues);
+
+  // Chart 6: Velocity (per hour)
   const velocityLine = buildVelocityData(issues, slots);
   const velocityChart = generateVelocityChart(slotLabels, velocityLine);
 
-  // Chart 4: Priority Distribution (open issues)
+  // Chart 7: Priority Distribution (open issues)
   const priorityChart = generatePriorityChart(issues);
 
-  // Chart 5: State Breakdown
+  // Chart 8: State Breakdown
   const stateChart = generateStateChart(stats);
 
   const table = generateTable(repoStats);
@@ -746,6 +1125,24 @@ ${milestoneChart}`);
     sections.push(`## Projected Completion
 
 ${projectionChart}`);
+  }
+
+  if (confidenceCone) {
+    sections.push(`## Confidence Cone
+
+${confidenceCone}`);
+  }
+
+  if (scopeCreepChart) {
+    sections.push(`## Scope Creep
+
+${scopeCreepChart}`);
+  }
+
+  if (priorityProjection) {
+    sections.push(`## Priority Burndown
+
+${priorityProjection}`);
   }
 
   if (velocityChart) {
@@ -782,7 +1179,7 @@ ${stateChart || ""} ${priorityChart || ""}`);
   const readme = sections.join("\n\n") + "\n";
 
   const { writeFileSync } = await import("node:fs");
-  writeFileSync("profile/README.md", readme);
+  writeFileSync("profile/README.md", readme);  // writeFileSync imported dynamically for compat
   console.log("Wrote profile/README.md");
   console.log(
     `Stats: ${stats.total} total, ${stats.done} done, ${stats.inProgress} in progress, ${stats.backlog} backlog`,

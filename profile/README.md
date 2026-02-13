@@ -4,7 +4,7 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart?c=%7B%22type%22%3A%22line%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Feb%2010%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2022%3A00%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Scope%22%2C%22data%22%3A%5B19%2C19%2C19%2C19%2C19%2C19%2C19%2C19%2C19%2C19%2C19%2C19%2C19%2C36%2C89%2C147%2C147%2C161%2C216%2C217%2C249%2C249%2C249%2C249%2C249%2C249%2C249%2C260%2C287%2C289%2C290%5D%2C%22borderColor%22%3A%22%236366f1%22%2C%22backgroundColor%22%3A%22rgba(99%2C102%2C241%2C0.1)%22%2C%22fill%22%3Atrue%2C%22pointRadius%22%3A0%2C%22borderWidth%22%3A2%7D%2C%7B%22label%22%3A%22Completed%22%2C%22data%22%3A%5B1%2C1%2C1%2C1%2C1%2C1%2C4%2C4%2C4%2C4%2C4%2C4%2C4%2C14%2C29%2C57%2C75%2C92%2C115%2C115%2C145%2C145%2C145%2C145%2C145%2C145%2C150%2C173%2C197%2C197%2C198%5D%2C%22borderColor%22%3A%22%2310b981%22%2C%22backgroundColor%22%3A%22rgba(16%2C185%2C129%2C0.15)%22%2C%22fill%22%3Atrue%2C%22pointRadius%22%3A0%2C%22borderWidth%22%3A2%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Burn-Up%20%E2%80%94%20Scope%20vs%20Completed%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22ticks%22%3A%7B%22maxRotation%22%3A45%2C%22fontSize%22%3A10%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%2C%22scaleLabel%22%3A%7B%22display%22%3Atrue%2C%22labelString%22%3A%22Issues%22%7D%7D%5D%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%7D%7D&w=800&h=300&bkg=%23ffffff)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-ef6c43fd-45a4-44e8-8995-789ed40c8ece)
 
 ## Milestones
 
@@ -12,11 +12,23 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-753275a6-a3d1-4a92-9311-d8adbd9a39f6)
+![Projection](https://quickchart.io/chart/render/zf-3c25fbdc-572c-4fba-9a8e-21109bd636af)
+
+## Confidence Cone
+
+![Confidence Cone](https://quickchart.io/chart/render/zf-74bd4c0b-8ca1-4c03-9ce7-683a35189a90)
+
+## Scope Creep
+
+![Scope Creep](https://quickchart.io/chart/render/zf-8b22c077-e54f-4424-97a8-572a0144ae61)
+
+## Priority Burndown
+
+![Priority Burndown](https://quickchart.io/chart/render/zf-479ad243-9487-4dc0-8ecf-4e096f290b87)
 
 ## Velocity
 
-![Velocity](https://quickchart.io/chart?c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Feb%2010%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2022%3A00%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Issues%20Closed%22%2C%22data%22%3A%5B1%2C0%2C0%2C0%2C0%2C0%2C3%2C0%2C0%2C0%2C0%2C0%2C0%2C2%2C11%2C8%2C11%2C15%2C13%2C0%2C18%2C0%2C0%2C0%2C0%2C0%2C1%2C17%2C11%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%236366f1%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Velocity%20%E2%80%94%20Issues%20Closed%20per%20Hour%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22ticks%22%3A%7B%22maxRotation%22%3A45%2C%22fontSize%22%3A10%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%2C%22stepSize%22%3A1%7D%2C%22scaleLabel%22%3A%7B%22display%22%3Atrue%2C%22labelString%22%3A%22Closed%22%7D%7D%5D%7D%2C%22legend%22%3A%7B%22display%22%3Afalse%7D%7D%7D&w=800&h=250&bkg=%23ffffff)
+![Velocity](https://quickchart.io/chart?c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Feb%2010%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2022%3A00%22%2C%22%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Issues%20Closed%22%2C%22data%22%3A%5B1%2C0%2C0%2C0%2C0%2C0%2C3%2C0%2C0%2C0%2C0%2C0%2C0%2C2%2C11%2C8%2C11%2C15%2C13%2C0%2C18%2C0%2C0%2C0%2C0%2C0%2C1%2C17%2C11%2C0%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%236366f1%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Velocity%20%E2%80%94%20Issues%20Closed%20per%20Hour%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22ticks%22%3A%7B%22maxRotation%22%3A45%2C%22fontSize%22%3A10%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%2C%22stepSize%22%3A1%7D%2C%22scaleLabel%22%3A%7B%22display%22%3Atrue%2C%22labelString%22%3A%22Closed%22%7D%7D%5D%7D%2C%22legend%22%3A%7B%22display%22%3Afalse%7D%7D%7D&w=800&h=250&bkg=%23ffffff)
 
 ## Progress by Repo
 
@@ -62,4 +74,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:32 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:27 UTC*
