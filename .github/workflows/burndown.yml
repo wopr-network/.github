@@ -1,0 +1,36 @@
+name: Burndown Chart
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # Every 6 hours
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  burndown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate burndown chart
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: node scripts/burndown.mjs
+
+      - name: Commit and push
+        run: |
+          git config user.name "wopr-bot"
+          git config user.email "bot@wopr.network"
+          git add profile/README.md
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore: update burndown chart [skip ci]"
+            git push
+          fi
