@@ -4,27 +4,27 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-12865ed3-0d4e-4088-8997-f0a9858aa0a7)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-4c9c5b7b-0860-4a8c-a6a1-bb8b03259ee9)
 
 ## Milestones
 
-![Milestone Progress](https://quickchart.io/chart?c=%7B%22type%22%3A%22horizontalBar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Test%20Coverage%22%2C%22Standalone%20WebUI%22%2C%22Feature%20Completion%22%2C%222.%20Instance%20Hardening%22%2C%221.%20Plugin%20Types%20%26%20Manifest%22%2C%22Code%20Quality%22%2C%22Security%20%26%20Error%20Handling%22%2C%22Continuous%20Delivery%22%2C%22Channel%20Expansion%22%2C%22Agent%20Tools%22%2C%223.%20Platform%20Core%22%2C%22WebMCP%20Integration%22%2C%224.%20Dynamic%20Plugin%20UI%22%2C%226.%20Monetization%22%2C%225.%20P2P%20Network%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Done%22%2C%22data%22%3A%5B17%2C22%2C32%2C4%2C4%2C31%2C23%2C31%2C11%2C2%2C3%2C0%2C0%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%2310b981%22%7D%2C%7B%22label%22%3A%22Remaining%22%2C%22data%22%3A%5B0%2C0%2C0%2C0%2C0%2C2%2C2%2C3%2C11%2C3%2C30%2C17%2C11%2C1%2C3%5D%2C%22backgroundColor%22%3A%22%23e5e7eb%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Milestone%20Progress%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22stacked%22%3Atrue%2C%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22stacked%22%3Atrue%2C%22ticks%22%3A%7B%22fontSize%22%3A11%7D%7D%5D%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%7D%7D&w=700&h=500&bkg=%23ffffff)
+![Milestone Progress](https://quickchart.io/chart?c=%7B%22type%22%3A%22horizontalBar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Test%20Coverage%22%2C%22Standalone%20WebUI%22%2C%22Feature%20Completion%22%2C%22Instance%20Hardening%22%2C%22Plugin%20Types%20%26%20Manifest%22%2C%22Code%20Quality%22%2C%22Security%20%26%20Error%20Handling%22%2C%22Continuous%20Delivery%22%2C%22Channel%20Expansion%22%2C%22Agent%20Tools%22%2C%22Platform%20Core%22%2C%22WebMCP%20Integration%22%2C%22Dynamic%20Plugin%20UI%22%2C%22Monetization%22%2C%22P2P%20Network%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Done%22%2C%22data%22%3A%5B17%2C22%2C32%2C4%2C4%2C31%2C23%2C31%2C11%2C2%2C3%2C0%2C0%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%2310b981%22%7D%2C%7B%22label%22%3A%22Remaining%22%2C%22data%22%3A%5B0%2C0%2C0%2C0%2C0%2C2%2C2%2C3%2C11%2C3%2C30%2C17%2C11%2C1%2C3%5D%2C%22backgroundColor%22%3A%22%23e5e7eb%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Milestone%20Progress%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22stacked%22%3Atrue%2C%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22stacked%22%3Atrue%2C%22ticks%22%3A%7B%22fontSize%22%3A11%7D%7D%5D%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%7D%7D&w=700&h=500&bkg=%23ffffff)
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-eb10f087-df10-413c-a565-a5add67cdde5)
+![Projection](https://quickchart.io/chart/render/zf-93d30033-bcf3-4b71-afbf-af4c111c33b2)
 
 ## Confidence Cone
 
-![Confidence Cone](https://quickchart.io/chart/render/zf-2c4e249d-dc27-4692-886c-0af129cfe904)
+![Confidence Cone](https://quickchart.io/chart/render/zf-31c92624-2d79-44dd-b2cc-e569a89ccb94)
 
 ## Scope Creep
 
-![Scope Creep](https://quickchart.io/chart/render/zf-281c423d-dc27-4204-9169-c32467c6504e)
+![Scope Creep](https://quickchart.io/chart/render/zf-efdab0c8-58ae-4aff-8597-059b9da89950)
 
 ## Priority Burndown
 
-![Priority Burndown](https://quickchart.io/chart/render/zf-3e36fe87-3b7c-4bc4-b56f-559bf40fb20e)
+![Priority Burndown](https://quickchart.io/chart/render/zf-2d49501a-a2dc-43f6-9ee9-75ceb9213589)
 
 ## Velocity
 
@@ -34,28 +34,33 @@
 
 | Repo | Total | Done | Open | Progress |
 |------|-------|------|------|----------|
-| wopr | 31 | 12 | 19 | ▓▓▓▓░░░░░░ 39% |
+| core | 31 | 12 | 19 | ▓▓▓▓░░░░░░ 39% |
 | platform | 20 | 3 | 17 | ▓▓░░░░░░░░ 15% |
 | other | 23 | 7 | 16 | ▓▓▓░░░░░░░ 30% |
 | devops | 28 | 21 | 7 | ▓▓▓▓▓▓▓▓░░ 75% |
 | security | 30 | 23 | 7 | ▓▓▓▓▓▓▓▓░░ 77% |
-| infra | 7 | 3 | 4 | ▓▓▓▓░░░░░░ 43% |
 | voice | 6 | 3 | 3 | ▓▓▓▓▓░░░░░ 50% |
 | webui | 20 | 17 | 3 | ▓▓▓▓▓▓▓▓▓░ 85% |
+| p2p | 5 | 2 | 3 | ▓▓▓▓░░░░░░ 40% |
 | imessage | 3 | 1 | 2 | ▓▓▓░░░░░░░ 33% |
 | memory-semantic | 5 | 3 | 2 | ▓▓▓▓▓▓░░░░ 60% |
 | msteams | 7 | 5 | 2 | ▓▓▓▓▓▓▓░░░ 71% |
-| refactor | 34 | 32 | 2 | ▓▓▓▓▓▓▓▓▓░ 94% |
+| tech-debt | 17 | 15 | 2 | ▓▓▓▓▓▓▓▓▓░ 88% |
 | discord | 4 | 2 | 2 | ▓▓▓▓▓░░░░░ 50% |
 | signal | 2 | 1 | 1 | ▓▓▓▓▓░░░░░ 50% |
+| tailscale-funnel | 2 | 1 | 1 | ▓▓▓▓▓░░░░░ 50% |
 | telegram | 11 | 10 | 1 | ▓▓▓▓▓▓▓▓▓░ 91% |
 | whatsapp | 12 | 11 | 1 | ▓▓▓▓▓▓▓▓▓░ 92% |
 | types | 7 | 6 | 1 | ▓▓▓▓▓▓▓▓▓░ 86% |
 | github | 8 | 7 | 1 | ▓▓▓▓▓▓▓▓▓░ 88% |
 | slack | 10 | 9 | 1 | ▓▓▓▓▓▓▓▓▓░ 90% |
-| providers | 7 | 7 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| provider-opencode | 1 | 1 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| provider-kimi | 1 | 1 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| provider-openai | 3 | 3 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
 | webhooks | 1 | 1 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| provider-anthropic | 2 | 2 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
 | testing | 14 | 14 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| refactor | 17 | 17 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
 | **Total** | **290** | **198** | **92** | **68%** |
 
 ## Distribution
@@ -74,4 +79,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:31 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:36 UTC*

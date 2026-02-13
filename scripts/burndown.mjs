@@ -34,27 +34,16 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-// Grouping rules: label name patterns → display name
-const GROUPING_RULES = [
-  { pattern: /^plugin-provider-/, display: "providers" },
-  { pattern: /^plugin-voice-|^voice$/, display: "voice" },
-  { pattern: /^plugin-tailscale|^plugin-p2p/, display: "infra" },
-  { pattern: /^wopr-platform$|^plugin-platform$|^platform$/, display: "platform" },
-  { pattern: /^wopr-core$/, display: "wopr" },
-  { pattern: /^tech-debt$|^refactor$/, display: "refactor" },
-  { pattern: /^plugin-/, display: null }, // strip "plugin-" prefix
-];
+// Labels to skip (category labels, not repo labels)
+const SKIP_LABELS = new Set(["Bug", "Improvement", "Feature"]);
 
 const PRIORITY_NAMES = ["None", "Urgent", "High", "Normal", "Low"];
 
 function labelToDisplayName(labelName) {
-  for (const rule of GROUPING_RULES) {
-    if (rule.pattern.test(labelName)) {
-      if (rule.display) return rule.display;
-      return labelName.replace(/^plugin-/, "");
-    }
-  }
-  return labelName;
+  // Strip common prefixes to get a clean display name
+  return labelName
+    .replace(/^plugin-/, "")
+    .replace(/^wopr-/, "");
 }
 
 let REPO_LABELS = {};
@@ -94,11 +83,9 @@ async function fetchLabels() {
     ...wsData.issueLabels.nodes.map((l) => l.name),
   ];
 
-  const skipLabels = new Set(["Bug", "Improvement", "Feature"]);
-
   REPO_LABELS = {};
   for (const name of allLabels) {
-    if (skipLabels.has(name)) continue;
+    if (SKIP_LABELS.has(name)) continue;
     REPO_LABELS[name] = labelToDisplayName(name);
   }
 
