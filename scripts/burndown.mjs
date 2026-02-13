@@ -1020,6 +1020,88 @@ async function generatePriorityProjection(issues) {
   return `![Priority Burndown](${url})`;
 }
 
+function autoGroupRepoStats(repoStats) {
+  // Discover common first-token prefixes shared by 2+ display names
+  const prefixMap = {}; // prefix → [displayName, ...]
+  for (const name of Object.keys(repoStats)) {
+    if (name === "other") continue;
+    const token = name.split("-")[0];
+    if (!prefixMap[token]) prefixMap[token] = [];
+    prefixMap[token].push(name);
+  }
+
+  const grouped = {};
+  const consumed = new Set();
+
+  // Merge groups with 2+ members under pluralized prefix
+  for (const [prefix, members] of Object.entries(prefixMap)) {
+    if (members.length >= 2) {
+      const groupName = prefix.endsWith("s") ? prefix : prefix + "s";
+      let total = 0, done = 0, open = 0;
+      for (const m of members) {
+        total += repoStats[m].total;
+        done += repoStats[m].done;
+        open += repoStats[m].open;
+        consumed.add(m);
+      }
+      grouped[groupName] = { total, done, open };
+    }
+  }
+
+  // Keep ungrouped items as-is
+  for (const [name, stats] of Object.entries(repoStats)) {
+    if (!consumed.has(name)) {
+      grouped[name] = stats;
+    }
+  }
+
+  return grouped;
+}
+
+function generateGroupedChart(repoStats) {
+  const grouped = autoGroupRepoStats(repoStats);
+
+  const entries = Object.entries(grouped)
+    .filter(([, s]) => s.total > 0)
+    .sort((a, b) => {
+      const pctA = a[1].done / a[1].total;
+      const pctB = b[1].done / b[1].total;
+      return pctB - pctA;
+    });
+
+  if (entries.length === 0) return "";
+
+  const config = {
+    type: "horizontalBar",
+    data: {
+      labels: entries.map(([n]) => n),
+      datasets: [
+        {
+          label: "Done",
+          data: entries.map(([, s]) => s.done),
+          backgroundColor: "#10b981",
+        },
+        {
+          label: "Remaining",
+          data: entries.map(([, s]) => s.total - s.done),
+          backgroundColor: "#e5e7eb",
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Progress by Category", fontSize: 16 },
+      scales: {
+        xAxes: [{ stacked: true, ticks: { beginAtZero: true } }],
+        yAxes: [{ stacked: true, ticks: { fontSize: 11 } }],
+      },
+      legend: { position: "bottom" },
+    },
+  };
+
+  const height = Math.max(250, entries.length * 28 + 80);
+  return `![Category Progress](${quickchartUrl(config, 700, height)})`;
+}
+
 function generateStateChart(stats) {
   const config = {
     type: "doughnut",
@@ -1124,6 +1206,13 @@ ${priorityProjection}`);
     sections.push(`## Velocity
 
 ${velocityChart}`);
+  }
+
+  const groupedChart = generateGroupedChart(repoStats);
+  if (groupedChart) {
+    sections.push(`## Progress by Category
+
+${groupedChart}`);
   }
 
   sections.push(`## Progress by Repo
