@@ -457,17 +457,12 @@ async function generateProjectionChart(milestones, issues) {
     });
 
     // Velocity: 7-day average issues/day
-    const velocity = stats.recentDone / 7;
+    const velocity = Math.max(1, stats.recentDone) / 7;
     const remaining = stats.total - stats.done;
 
     // Project future: generate daily points declining to 0
-    let projDays = 0;
-    if (velocity > 0) {
-      projDays = Math.ceil(remaining / velocity);
-      if (projDays > 90) projDays = 90; // cap at 90 days
-    } else {
-      projDays = 30; // stalled: show flat for 30 days
-    }
+    let projDays = Math.ceil(remaining / velocity);
+    if (projDays > 90) projDays = 90; // cap at 90 days
 
     if (projDays > maxProjectedDays) maxProjectedDays = projDays;
 
@@ -477,7 +472,7 @@ async function generateProjectionChart(milestones, issues) {
     // Last historical point = start of projection
     projData.push(remaining);
     for (let d = 1; d <= projDays; d++) {
-      const val = velocity > 0 ? Math.max(0, remaining - velocity * d) : remaining;
+      const val = Math.max(0, remaining - velocity * d);
       projData.push(Math.round(val * 10) / 10);
     }
 
