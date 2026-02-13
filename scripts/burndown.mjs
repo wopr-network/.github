@@ -339,20 +339,107 @@ function generateTable(repoStats) {
 
 function buildMilestoneData(issues) {
   const milestones = {};
+  const now = new Date();
+  const windowMs = 7 * 24 * 60 * 60 * 1000; // 7-day velocity window
+  const windowStart = new Date(now.getTime() - windowMs);
 
   for (const issue of issues) {
     const ms = issue.projectMilestone;
     if (!ms) continue;
-    // Skip deleted milestones
     if (ms.name.startsWith("[DELETED]")) continue;
 
-    if (!milestones[ms.name]) milestones[ms.name] = { total: 0, done: 0 };
+    if (!milestones[ms.name]) milestones[ms.name] = { total: 0, done: 0, recentDone: 0 };
     milestones[ms.name].total++;
     const type = issue.state.type;
-    if (type === "completed" || type === "cancelled") milestones[ms.name].done++;
+    if (type === "completed" || type === "cancelled") {
+      milestones[ms.name].done++;
+      // Track velocity: completed in last 7 days
+      if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
+        milestones[ms.name].recentDone++;
+      }
+    }
   }
 
   return milestones;
+}
+
+function generateProjectionChart(milestones) {
+  const now = new Date();
+  const entries = Object.entries(milestones)
+    .filter(([, s]) => s.total > 0 && s.total - s.done > 0) // only incomplete milestones
+    .map(([name, s]) => {
+      const remaining = s.total - s.done;
+      const velocity = s.recentDone / 7; // issues/day (7-day average)
+
+      let daysLeft;
+      let projectedDate;
+      let label;
+
+      if (velocity > 0) {
+        daysLeft = Math.ceil(remaining / velocity);
+        projectedDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
+        const month = projectedDate.toLocaleString("en", { month: "short" });
+        label = `${month} ${projectedDate.getDate()}`;
+      } else {
+        daysLeft = null;
+        projectedDate = null;
+        label = "No velocity";
+      }
+
+      return { name, remaining, velocity, daysLeft, projectedDate, label };
+    })
+    .sort((a, b) => {
+      // Sort: items with dates first (soonest first), then no-velocity items
+      if (a.daysLeft === null && b.daysLeft === null) return 0;
+      if (a.daysLeft === null) return 1;
+      if (b.daysLeft === null) return -1;
+      return a.daysLeft - b.daysLeft;
+    });
+
+  if (entries.length === 0) return "";
+
+  // Build a horizontal bar chart: days until completion
+  const maxDays = Math.max(...entries.filter((e) => e.daysLeft !== null).map((e) => e.daysLeft), 1);
+
+  const config = {
+    type: "horizontalBar",
+    data: {
+      labels: entries.map((e) => e.name),
+      datasets: [
+        {
+          label: "Days to Completion",
+          data: entries.map((e) => e.daysLeft ?? maxDays * 1.2),
+          backgroundColor: entries.map((e) =>
+            e.daysLeft === null ? "#9ca3af" : e.daysLeft <= 3 ? "#10b981" : e.daysLeft <= 7 ? "#eab308" : "#ef4444",
+          ),
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Projected Completion (7-day rolling velocity)", fontSize: 16 },
+      scales: {
+        xAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Days" } }],
+        yAxes: [{ ticks: { fontSize: 11 } }],
+      },
+      legend: { display: false },
+      plugins: {
+        datalabels: {
+          display: true,
+          anchor: "end",
+          align: "right",
+          formatter: (val, ctx) => {
+            const e = entries[ctx.dataIndex];
+            if (e.daysLeft === null) return "stalled";
+            return `${e.label} (${e.remaining} left @ ${e.velocity.toFixed(1)}/day)`;
+          },
+          font: { size: 10 },
+        },
+      },
+    },
+  };
+
+  const height = Math.max(300, entries.length * 32 + 80);
+  return `![Projection](${quickchartUrl(config, 800, height)})`;
 }
 
 function generateMilestoneChart(milestones) {
@@ -521,9 +608,10 @@ async function main() {
   // Chart 1: Burn-Up
   const burnup = generateBurnupChart(slotLabels, scopeLine, doneLine);
 
-  // Chart 2: Milestone Progress
+  // Chart 2: Milestone Progress + Projection
   const milestoneData = buildMilestoneData(issues);
   const milestoneChart = generateMilestoneChart(milestoneData);
+  const projectionChart = generateProjectionChart(milestoneData);
 
   // Chart 3: Velocity (per hour)
   const velocityLine = buildVelocityData(issues, slots);
@@ -550,6 +638,12 @@ ${burnup}`];
     sections.push(`## Milestones
 
 ${milestoneChart}`);
+  }
+
+  if (projectionChart) {
+    sections.push(`## Projected Completion
+
+${projectionChart}`);
   }
 
   if (velocityChart) {
