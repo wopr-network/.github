@@ -16,20 +16,65 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-// Label → display name mapping (only repos we care about)
-const REPO_LABELS = {
-  "wopr-core": "wopr",
-  "plugin-discord": "discord",
-  "plugin-slack": "slack",
-  "plugin-telegram": "telegram",
-  "plugin-whatsapp": "whatsapp",
-  "plugin-signal": "signal",
-  "plugin-msteams": "msteams",
-  "plugin-memory-semantic": "memory",
-  "wopr-platform": "platform",
-  "plugin-webui": "webui",
-  "plugin-github": "github",
-};
+// Grouping rules: label name patterns → display name
+// Labels fetched from Linear API are matched against these patterns
+const GROUPING_RULES = [
+  { pattern: /^plugin-provider-/, display: "providers" },
+  { pattern: /^plugin-voice-|^voice$/, display: "voice" },
+  { pattern: /^plugin-tailscale|^plugin-p2p/, display: "infra" },
+  { pattern: /^wopr-platform$|^plugin-platform$|^platform$/, display: "platform" },
+  { pattern: /^wopr-core$/, display: "wopr" },
+  { pattern: /^tech-debt$|^refactor$/, display: "refactor" },
+  { pattern: /^plugin-/, display: null }, // strip "plugin-" prefix, use rest as display name
+];
+
+function labelToDisplayName(labelName) {
+  for (const rule of GROUPING_RULES) {
+    if (rule.pattern.test(labelName)) {
+      if (rule.display) return rule.display;
+      // null display means strip prefix
+      return labelName.replace(/^plugin-/, "");
+    }
+  }
+  return labelName; // use as-is
+}
+
+// Built dynamically from Linear API
+let REPO_LABELS = {};
+let DISPLAY_NAMES = [];
+
+async function fetchLabels() {
+  const data = await linearQuery(
+    `query($teamId: String!) {
+      team(id: $teamId) {
+        labels { nodes { name } }
+      }
+    }`,
+    { teamId: TEAM_ID },
+  );
+
+  // Also get workspace labels
+  const wsData = await linearQuery(
+    `{ issueLabels(filter: { team: { null: true } }, first: 250) { nodes { name } } }`,
+  );
+
+  const allLabels = [
+    ...data.team.labels.nodes.map((l) => l.name),
+    ...wsData.issueLabels.nodes.map((l) => l.name),
+  ];
+
+  // Skip generic labels that aren't repo-related
+  const skipLabels = new Set(["Bug", "Improvement", "Feature"]);
+
+  REPO_LABELS = {};
+  for (const name of allLabels) {
+    if (skipLabels.has(name)) continue;
+    REPO_LABELS[name] = labelToDisplayName(name);
+  }
+
+  DISPLAY_NAMES = [...new Set(Object.values(REPO_LABELS))];
+  console.log(`Loaded ${Object.keys(REPO_LABELS).length} labels → ${DISPLAY_NAMES.length} groups`);
+}
 
 async function linearQuery(query, variables = {}) {
   const res = await fetch(LINEAR_API, {
@@ -53,7 +98,7 @@ async function fetchAllIssues() {
 
   while (hasMore) {
     const data = await linearQuery(
-      `query($teamId: String!, $cursor: String) {
+      `query($teamId: ID!, $cursor: String) {
         issues(
           filter: { team: { id: { eq: $teamId } } }
           first: 250
@@ -70,7 +115,7 @@ async function fetchAllIssues() {
           pageInfo { hasNextPage endCursor }
         }
       }`,
-      { teamId: TEAM_ID, cursor }
+      { teamId: TEAM_ID, cursor },
     );
 
     issues.push(...data.issues.nodes);
@@ -81,85 +126,104 @@ async function fetchAllIssues() {
   return issues;
 }
 
-function getWeekLabel(date) {
-  const d = new Date(date);
-  const jan1 = new Date(d.getFullYear(), 0, 1);
-  const days = Math.floor((d - jan1) / 86400000);
-  const week = Math.ceil((days + jan1.getDay() + 1) / 7);
+function getHourLabel(isoStr) {
+  const d = new Date(isoStr);
   const month = d.toLocaleString("en", { month: "short" });
   const day = d.getDate();
-  return `${month} ${day}`;
+  const hour = d.getHours().toString().padStart(2, "0");
+  return `${month} ${day} ${hour}:00`;
 }
 
-function getWeekStart(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day); // Sunday
-  return d.toISOString().slice(0, 10);
-}
-
-function buildWeeklyData(issues) {
-  // Get date range — last 8 weeks
+function buildHourlySlots() {
   const now = new Date();
-  const weeks = [];
-  for (let i = 7; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i * 7);
-    const ws = getWeekStart(d);
-    weeks.push(ws);
-  }
+  // Find the earliest issue createdAt to set the start
+  // We'll determine this after fetching, so return a function
+  return (earliest) => {
+    const start = new Date(earliest);
+    start.setMinutes(0, 0, 0); // round down to hour
 
-  // Categorize issues by repo label
-  const repoIssues = {};
-  for (const label of Object.keys(REPO_LABELS)) {
-    repoIssues[label] = [];
-  }
-  repoIssues["other"] = [];
+    const slots = [];
+    const current = new Date(start);
+    while (current <= now) {
+      slots.push(current.toISOString());
+      current.setHours(current.getHours() + 1);
+    }
+
+    // If too many slots, sample every N hours to keep chart readable (max ~48 labels)
+    if (slots.length > 48) {
+      const step = Math.ceil(slots.length / 48);
+      const sampled = [];
+      for (let i = 0; i < slots.length; i += step) {
+        sampled.push(slots[i]);
+      }
+      // Always include the last slot
+      if (sampled[sampled.length - 1] !== slots[slots.length - 1]) {
+        sampled.push(slots[slots.length - 1]);
+      }
+      return sampled;
+    }
+    return slots;
+  };
+}
+
+function categorizeIssues(issues) {
+  // Group by display name
+  const grouped = {};
+  for (const name of DISPLAY_NAMES) grouped[name] = [];
+  grouped["other"] = [];
 
   for (const issue of issues) {
     const labels = issue.labels.nodes.map((l) => l.name);
     let matched = false;
-    for (const label of Object.keys(REPO_LABELS)) {
+    for (const [label, displayName] of Object.entries(REPO_LABELS)) {
       if (labels.includes(label)) {
-        repoIssues[label].push(issue);
+        grouped[displayName].push(issue);
         matched = true;
         break;
       }
     }
-    if (!matched) repoIssues["other"].push(issue);
+    if (!matched) grouped["other"].push(issue);
   }
 
-  // For each week, count remaining open issues per repo
-  const weekLabels = weeks.map((w) => getWeekLabel(w));
+  return grouped;
+}
+
+function buildHourlyData(issues) {
+  // Find earliest createdAt
+  let earliest = new Date();
+  for (const issue of issues) {
+    const d = new Date(issue.createdAt);
+    if (d < earliest) earliest = d;
+  }
+
+  const slotBuilder = buildHourlySlots();
+  const slots = slotBuilder(earliest);
+
+  const grouped = categorizeIssues(issues);
+
+  const slotLabels = slots.map((s) => getHourLabel(s));
   const series = {};
 
-  for (const [label, displayName] of [
-    ...Object.entries(REPO_LABELS),
-    ["other", "other"],
-  ]) {
-    const repoList = repoIssues[label];
-    if (repoList.length === 0) continue;
+  for (const [displayName, repoIssues] of Object.entries(grouped)) {
+    if (repoIssues.length === 0) continue;
 
-    series[displayName] = weeks.map((weekEnd) => {
-      const endDate = new Date(weekEnd);
-      endDate.setDate(endDate.getDate() + 7); // end of week
+    series[displayName] = slots.map((slotIso) => {
+      const slotEnd = new Date(slotIso);
+      slotEnd.setHours(slotEnd.getHours() + 1);
 
       let open = 0;
-      for (const issue of repoList) {
+      for (const issue of repoIssues) {
         const created = new Date(issue.createdAt);
-        if (created > endDate) continue; // not yet created
+        if (created > slotEnd) continue; // not yet created
         if (issue.completedAt) {
           const completed = new Date(issue.completedAt);
-          if (completed <= endDate) continue; // already done
-        }
-        // cancelled/archived count as done
-        if (
-          issue.state.type === "cancelled" ||
-          issue.state.type === "completed"
+          if (completed <= slotEnd) continue; // already done by this slot
+        } else if (
+          issue.state.type === "completed" ||
+          issue.state.type === "cancelled"
         ) {
-          if (issue.completedAt && new Date(issue.completedAt) <= endDate)
-            continue;
+          // completedAt might be null for cancelled — treat as done now
+          continue;
         }
         open++;
       }
@@ -167,11 +231,11 @@ function buildWeeklyData(issues) {
     });
   }
 
-  return { weekLabels, series };
+  return { slotLabels, series };
 }
 
 function buildSummaryStats(issues) {
-  let total = issues.length;
+  const total = issues.length;
   let done = 0;
   let inProgress = 0;
   let backlog = 0;
@@ -186,12 +250,12 @@ function buildSummaryStats(issues) {
   return { total, done, inProgress, backlog };
 }
 
-function generateMermaid(weekLabels, series) {
+function generateMermaid(slotLabels, series) {
   const lines = [];
   lines.push("```mermaid");
   lines.push("xychart-beta");
-  lines.push('  title "WOPR Burndown — Open Issues by Repo"');
-  lines.push(`  x-axis [${weekLabels.map((w) => `"${w}"`).join(", ")}]`);
+  lines.push('  title "WOPR Burndown — Open Issues by Repo (hourly)"');
+  lines.push(`  x-axis [${slotLabels.map((w) => `"${w}"`).join(", ")}]`);
 
   // Find max for y-axis
   let max = 0;
@@ -200,7 +264,7 @@ function generateMermaid(weekLabels, series) {
   }
   lines.push(`  y-axis "Open Issues" 0 --> ${Math.ceil(max * 1.1)}`);
 
-  for (const [name, vals] of Object.entries(series)) {
+  for (const vals of Object.values(series)) {
     lines.push(`  line [${vals.join(", ")}]`);
   }
 
@@ -208,8 +272,8 @@ function generateMermaid(weekLabels, series) {
   return lines.join("\n");
 }
 
-function generateTable(series, weekLabels) {
-  // Current week (last column) breakdown
+function generateTable(series) {
+  // Current (last column) breakdown
   const current = {};
   let total = 0;
   for (const [name, vals] of Object.entries(series)) {
@@ -225,7 +289,7 @@ function generateTable(series, weekLabels) {
   lines.push("| Repo | Open Issues |");
   lines.push("|------|------------|");
   for (const [name, count] of sorted) {
-    const bar = "█".repeat(Math.ceil(count / 2)) || "▏";
+    const bar = "\u2588".repeat(Math.ceil(count / 2)) || "\u258F";
     lines.push(`| ${name} | ${bar} ${count} |`);
   }
   lines.push(`| **Total** | **${total}** |`);
@@ -234,24 +298,27 @@ function generateTable(series, weekLabels) {
 
 function generateLegend(series) {
   const names = Object.keys(series);
-  return `> Lines (top→bottom): ${names.join(", ")}`;
+  return `> Lines (top\u2192bottom): ${names.join(", ")}`;
 }
 
 async function main() {
+  console.log("Fetching labels from Linear...");
+  await fetchLabels();
+
   console.log("Fetching issues from Linear...");
   const issues = await fetchAllIssues();
   console.log(`Fetched ${issues.length} issues`);
 
-  const { weekLabels, series } = buildWeeklyData(issues);
+  const { slotLabels, series } = buildHourlyData(issues);
   const stats = buildSummaryStats(issues);
-  const mermaid = generateMermaid(weekLabels, series);
-  const table = generateTable(series, weekLabels);
+  const mermaid = generateMermaid(slotLabels, series);
+  const table = generateTable(series);
   const legend = generateLegend(series);
   const now = new Date().toISOString().slice(0, 16).replace("T", " ");
 
   const readme = `# WOPR Network
 
-**AI-native multi-channel bot platform** — Discord, Slack, Telegram, WhatsApp, Signal, IRC, and more.
+**AI-native multi-channel bot platform** \u2014 Discord, Slack, Telegram, WhatsApp, Signal, IRC, and more.
 
 ## Project Burndown
 
@@ -275,13 +342,16 @@ ${table}
 
 ---
 
-*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) — last run: ${now} UTC*
+*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) \u2014 last run: ${now} UTC*
 `;
 
   const { writeFileSync } = await import("node:fs");
   writeFileSync("profile/README.md", readme);
   console.log("Wrote profile/README.md");
-  console.log(`Stats: ${stats.total} total, ${stats.done} done, ${stats.inProgress} in progress, ${stats.backlog} backlog`);
+  console.log(
+    `Stats: ${stats.total} total, ${stats.done} done, ${stats.inProgress} in progress, ${stats.backlog} backlog`,
+  );
+  console.log(`Chart: ${slotLabels.length} time slots, ${Object.keys(series).length} series`);
 }
 
 main().catch((e) => {
