@@ -792,13 +792,15 @@ async function generateScopeCreepCharts(milestones, issues) {
 
   if (charts.length === 0) return "";
 
-  // Layout: 3 per row, legend as first line
-  const lines = ["**Legend:** <span style='color:#6366f1'>- - Scope</span> · <span style='color:#10b981'>━ Done</span> · <span style='color:#ef4444'>━ Backlog</span>\n"];
+  // Layout: HTML table, 3 columns
+  const rows = [];
   for (let i = 0; i < charts.length; i += 3) {
-    lines.push(charts.slice(i, i + 3).join(" "));
+    const cells = charts.slice(i, i + 3).map((c) => `<td>${c}</td>`);
+    while (cells.length < 3) cells.push("<td></td>");
+    rows.push(`<tr>${cells.join("")}</tr>`);
   }
 
-  return lines.join("\n\n");
+  return `<table>${rows.join("\n")}</table>`;
 }
 
 async function generateConfidenceCone(issues) {

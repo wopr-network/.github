@@ -4,7 +4,7 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-59f1fbd8-9231-4c3e-8a56-b79069405217)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-825b28c5-8b32-4ee8-b80e-6fc6d8b125e7)
 
 ## Milestones
 
@@ -12,30 +12,23 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-8c2fc588-07a8-49e1-a303-aaf7655d28c4)
+![Projection](https://quickchart.io/chart/render/zf-9ad2ff8b-c083-4980-9591-88ac1122d8f6)
 
 ## Confidence Cone
 
-![Confidence Cone](https://quickchart.io/chart/render/zf-588cbe33-2541-4b43-ab55-2f0a3ecd4040)
+![Confidence Cone](https://quickchart.io/chart/render/zf-c379b632-7544-46e7-97c7-31b3845a4ed4)
 
 ## Scope Creep
 
-**Legend:** <span style='color:#6366f1'>- - Scope</span> · <span style='color:#10b981'>━ Done</span> · <span style='color:#ef4444'>━ Backlog</span>
-
-
-![Platform Core](https://quickchart.io/chart/render/zf-5b9952a7-d194-479e-a5a7-1062cad15fa1) ![WebMCP Integration](https://quickchart.io/chart/render/zf-e6164285-933e-41ce-8cc0-639c2731d5cd) ![Dynamic Plugin UI](https://quickchart.io/chart/render/zf-27def959-c7c2-42e6-9514-b6403fea7832)
-
-![Channel Expansion](https://quickchart.io/chart/render/zf-b6f1748f-7446-44c0-a0db-71cb676b5685) ![Continuous Delivery](https://quickchart.io/chart/render/zf-6701c6e6-3a67-46ae-a430-580634418c6f) ![Agent Tools](https://quickchart.io/chart/render/zf-048c94be-28f0-4519-89c1-87883e4681d4)
-
-![P2P Network](https://quickchart.io/chart/render/zf-65ef59c5-4936-481f-8087-41856a1acd1a) ![Code Quality](https://quickchart.io/chart/render/zf-24d6cf27-79a8-41a4-a9ad-0b83ba651f72) ![Security & Error Handling](https://quickchart.io/chart/render/zf-66654a68-1118-468a-8595-070c3ba00dfc)
-
-![Monetization](https://quickchart.io/chart/render/zf-fa6f1c93-7cdf-4880-94eb-fc309ae2590a) ![Test Coverage](https://quickchart.io/chart/render/zf-0e636a6e-5bf9-4681-bf1f-e131ffb29cd3) ![Standalone WebUI](https://quickchart.io/chart/render/zf-097ce4da-8e1b-47ae-8ed5-44b4dc1e2b74)
-
-![Feature Completion](https://quickchart.io/chart/render/zf-c66237b0-7e30-413c-9dd2-a2bf14cf57bb) ![Instance Hardening](https://quickchart.io/chart/render/zf-09bedd02-1c42-4ae7-8e13-5accb5516317) ![Plugin Types & Manifest](https://quickchart.io/chart/render/zf-99ced01e-3070-44a2-a87c-da1d301a9273)
+<table><tr><td>![Platform Core](https://quickchart.io/chart/render/zf-7374814f-949d-426d-b2ba-fb2254f71e1e)</td><td>![WebMCP Integration](https://quickchart.io/chart/render/zf-947cea5d-11ff-41f3-93ba-7640a0c5730d)</td><td>![Dynamic Plugin UI](https://quickchart.io/chart/render/zf-e6ae9601-82a1-4aa6-b4d6-74eb2d399bb9)</td></tr>
+<tr><td>![Channel Expansion](https://quickchart.io/chart/render/zf-05f09504-a215-4f7e-bed5-0b599ca4c29e)</td><td>![Continuous Delivery](https://quickchart.io/chart/render/zf-721a63c3-592d-4fda-8647-f6028bf77c16)</td><td>![Agent Tools](https://quickchart.io/chart/render/zf-1d508f0e-52fe-4b71-9b31-4b707dec0213)</td></tr>
+<tr><td>![P2P Network](https://quickchart.io/chart/render/zf-cdc4e17a-b12c-4a19-b205-110d7787aa30)</td><td>![Code Quality](https://quickchart.io/chart/render/zf-a481e55b-58b0-4037-9f7f-e21137555c82)</td><td>![Security & Error Handling](https://quickchart.io/chart/render/zf-3fa949d7-d059-4c63-b1a3-0217dc9afa40)</td></tr>
+<tr><td>![Monetization](https://quickchart.io/chart/render/zf-33a6fbd9-d813-4b4a-b001-650f0560bfc5)</td><td>![Test Coverage](https://quickchart.io/chart/render/zf-97a1629f-8884-46e4-bc71-c2487f47a593)</td><td>![Standalone WebUI](https://quickchart.io/chart/render/zf-7cfe052d-aa94-4cb7-945e-1ed5b6831164)</td></tr>
+<tr><td>![Feature Completion](https://quickchart.io/chart/render/zf-52b0c0ce-9286-4873-8f1f-44acbfb2581f)</td><td>![Instance Hardening](https://quickchart.io/chart/render/zf-8a7ca71a-971a-4850-a744-daf07dc206b8)</td><td>![Plugin Types & Manifest](https://quickchart.io/chart/render/zf-29c3065e-4dc1-45bc-9cbf-4e2609c60531)</td></tr></table>
 
 ## Priority Burndown
 
-![Priority Burndown](https://quickchart.io/chart/render/zf-16087755-9562-45fe-ad87-67d2aaa2f714)
+![Priority Burndown](https://quickchart.io/chart/render/zf-07266aab-ecbe-4bdf-9aab-06c3e51a71d2)
 
 ## Velocity
 
@@ -94,4 +87,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:52 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:53 UTC*
