@@ -291,8 +291,7 @@ function buildSummaryStats(issues) {
 async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
   const creepLine = scopeLine.map((s, i) => s - doneLine[i]);
 
-  // 14-day projected trendline for creep
-  // Find slot closest to 14 days ago
+  // 14-day projected trendlines for all three lines
   const now = new Date();
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   let windowStart = 0;
@@ -301,32 +300,36 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
   }
 
   const lastIdx = creepLine.length - 1;
-  const creepNow = creepLine[lastIdx];
-  const creepThen = creepLine[windowStart];
   const slotsInWindow = lastIdx - windowStart;
 
-  // Rate of change per slot
-  const ratePerSlot = slotsInWindow > 0 ? (creepNow - creepThen) / slotsInWindow : 0;
+  // Rate of change per slot for each line
+  const scopeRate = slotsInWindow > 0 ? (scopeLine[lastIdx] - scopeLine[windowStart]) / slotsInWindow : 0;
+  const doneRate = slotsInWindow > 0 ? (doneLine[lastIdx] - doneLine[windowStart]) / slotsInWindow : 0;
+  const creepRate = slotsInWindow > 0 ? (creepLine[lastIdx] - creepLine[windowStart]) / slotsInWindow : 0;
 
-  // Project forward: how many slots until creep hits 0?
-  let projSlots = 0;
-  if (ratePerSlot < 0 && creepNow > 0) {
-    projSlots = Math.ceil(-creepNow / ratePerSlot);
-    if (projSlots > 60) projSlots = 60; // cap
-  } else {
-    projSlots = 30; // just show trend direction for 30 slots
+  // Project forward 30 slots (or until creep hits 0)
+  let projSlots = 30;
+  if (creepRate < 0 && creepLine[lastIdx] > 0) {
+    const toZero = Math.ceil(-creepLine[lastIdx] / creepRate);
+    projSlots = Math.min(Math.max(toZero, 30), 60);
   }
 
-  // Build projection data: null for historical, then declining from last creep value
-  const projData = new Array(creepLine.length).fill(null);
-  projData[lastIdx] = creepNow; // connect to last real point
-  for (let i = 1; i <= projSlots; i++) {
-    projData.push(Math.max(0, Math.round((creepNow + ratePerSlot * i) * 10) / 10));
-  }
+  // Build projection arrays
+  const buildProj = (line, rate) => {
+    const proj = new Array(line.length).fill(null);
+    proj[lastIdx] = line[lastIdx]; // connect to last real point
+    for (let i = 1; i <= projSlots; i++) {
+      proj.push(Math.max(0, Math.round((line[lastIdx] + rate * i) * 10) / 10));
+    }
+    return proj;
+  };
+
+  const scopeProj = buildProj(scopeLine, scopeRate);
+  const doneProj = buildProj(doneLine, doneRate);
+  const creepProj = buildProj(creepLine, creepRate);
 
   // Extend labels for projection
   const allLabels = [...slotLabels];
-  // Figure out hours per slot for label generation
   const hoursPerSlot = slots.length >= 2
     ? (new Date(slots[1]) - new Date(slots[0])) / (60 * 60 * 1000)
     : 1;
@@ -342,7 +345,7 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
     }
   }
 
-  // Pad scope/done/creep with nulls for the projection zone
+  // Pad historical lines with nulls for the projection zone
   const scopePadded = [...scopeLine, ...new Array(projSlots).fill(null)];
   const donePadded = [...doneLine, ...new Array(projSlots).fill(null)];
   const creepPadded = [...creepLine, ...new Array(projSlots).fill(null)];
@@ -383,8 +386,28 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
           borderDash: [4, 3],
         },
         {
-          label: "Creep Trend (14d)",
-          data: projData,
+          label: "",
+          data: scopeProj,
+          borderColor: "rgba(99,102,241,0.4)",
+          backgroundColor: "transparent",
+          fill: false,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [2, 2],
+        },
+        {
+          label: "",
+          data: doneProj,
+          borderColor: "rgba(16,185,129,0.4)",
+          backgroundColor: "transparent",
+          fill: false,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [2, 2],
+        },
+        {
+          label: "Trend (14d)",
+          data: creepProj,
           borderColor: "rgba(239,68,68,0.5)",
           backgroundColor: "transparent",
           fill: false,
