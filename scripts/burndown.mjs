@@ -676,69 +676,129 @@ function generatePriorityChart(issues) {
   return `![Priority](${quickchartUrl(config, 400, 250)})`;
 }
 
-async function generateScopeCreepChart(milestones, issues) {
-  const now = new Date();
-  const windowMs = 7 * 24 * 60 * 60 * 1000;
-  const windowStart = new Date(now.getTime() - windowMs);
-
-  // Per-milestone: issues created vs closed in last 7 days
-  const msData = {};
+async function generateScopeCreepCharts(milestones, issues) {
+  // Group issues by milestone
+  const issuesByMs = {};
   for (const issue of issues) {
     const ms = issue.projectMilestone;
     if (!ms || ms.name.startsWith("[DELETED]")) continue;
-    if (!msData[ms.name]) msData[ms.name] = { added: 0, closed: 0 };
-
-    if (new Date(issue.createdAt) >= windowStart) {
-      msData[ms.name].added++;
-    }
-    if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
-      msData[ms.name].closed++;
-    }
+    if (!issuesByMs[ms.name]) issuesByMs[ms.name] = [];
+    issuesByMs[ms.name].push(issue);
   }
 
-  // Net change = added - closed. Positive = scope growing, negative = burning down
-  const entries = Object.entries(msData)
-    .map(([name, d]) => ({ name, added: d.added, closed: d.closed, net: d.added - d.closed }))
-    .filter((e) => e.added > 0 || e.closed > 0) // skip inactive milestones
-    .sort((a, b) => b.net - a.net); // worst creep on top
+  // Only chart milestones with activity
+  const active = Object.entries(milestones)
+    .filter(([, s]) => s.total > 0)
+    .sort((a, b) => (b[1].total - b[1].done) - (a[1].total - a[1].done)); // most remaining first
 
-  if (entries.length === 0) return "";
+  if (active.length === 0) return "";
 
-  const config = {
-    type: "horizontalBar",
-    data: {
-      labels: entries.map((e) => e.name),
-      datasets: [
-        {
-          label: "Added (7d)",
-          data: entries.map((e) => e.added),
-          backgroundColor: "#ef4444",
-        },
-        {
-          label: "Closed (7d)",
-          data: entries.map((e) => -e.closed),
-          backgroundColor: "#10b981",
-        },
-      ],
-    },
-    options: {
-      title: { display: true, text: "Scope Creep by Milestone — Last 7 Days", fontSize: 16 },
-      scales: {
-        xAxes: [{
-          stacked: true,
-          ticks: { fontSize: 10 },
-          scaleLabel: { display: true, labelString: "\u2190 Closing    |    Growing \u2192" },
-        }],
-        yAxes: [{ stacked: true, ticks: { fontSize: 11 } }],
+  // Find global earliest for consistent x-axis
+  let earliest = new Date();
+  for (const issue of issues) {
+    if (issue.projectMilestone) {
+      const d = new Date(issue.createdAt);
+      if (d < earliest) earliest = d;
+    }
+  }
+  const dailySlots = buildDailySlots(earliest);
+
+  // Generate a compact chart per milestone
+  const charts = [];
+  const labelStep = Math.max(1, Math.ceil(dailySlots.length / 6));
+
+  for (const [name] of active) {
+    const msIssues = issuesByMs[name] || [];
+    if (msIssues.length === 0) continue;
+
+    const now = new Date();
+    const labels = dailySlots.map((d, i) =>
+      i % labelStep === 0 ? `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}` : "",
+    );
+
+    // 3 lines per milestone
+    const scopeData = []; // cumulative created (the creep line)
+    const doneData = [];  // cumulative completed
+    const backlogData = []; // remaining = created - done
+
+    for (const day of dailySlots) {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      let created = 0;
+      let done = 0;
+      for (const issue of msIssues) {
+        if (new Date(issue.createdAt) <= dayEnd) {
+          created++;
+          if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) done++;
+          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+            if (dayEnd >= now) done++;
+          }
+        }
+      }
+      scopeData.push(created);
+      doneData.push(done);
+      backlogData.push(created - done);
+    }
+
+    const config = {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Scope",
+            data: scopeData,
+            borderColor: "#6366f1",
+            backgroundColor: "transparent",
+            pointRadius: 0,
+            borderWidth: 1.5,
+            borderDash: [4, 3],
+            fill: false,
+          },
+          {
+            label: "Done",
+            data: doneData,
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16,185,129,0.1)",
+            pointRadius: 0,
+            borderWidth: 2,
+            fill: true,
+          },
+          {
+            label: "Backlog",
+            data: backlogData,
+            borderColor: "#ef4444",
+            backgroundColor: "rgba(239,68,68,0.08)",
+            pointRadius: 0,
+            borderWidth: 2,
+            fill: true,
+          },
+        ],
       },
-      legend: { position: "bottom" },
-    },
-  };
+      options: {
+        title: { display: true, text: name, fontSize: 13 },
+        scales: {
+          xAxes: [{ ticks: { maxRotation: 0, fontSize: 9 }, gridLines: { display: false } }],
+          yAxes: [{ ticks: { beginAtZero: true, fontSize: 9 }, gridLines: { drawBorder: false } }],
+        },
+        legend: { display: false },
+        layout: { padding: 4 },
+      },
+    };
 
-  const height = Math.max(250, entries.length * 32 + 100);
-  const url = await quickchartShortUrl(config, 700, height);
-  if (!url) return "";
-  return `![Scope Creep](${url})`;
+    const url = await quickchartShortUrl(config, 360, 200);
+    if (url) charts.push(`![${name}](${url})`);
+  }
+
+  if (charts.length === 0) return "";
+
+  // Layout: 3 per row, legend as first line
+  const lines = ["**Legend:** <span style='color:#6366f1'>- - Scope</span> · <span style='color:#10b981'>━ Done</span> · <span style='color:#ef4444'>━ Backlog</span>\n"];
+  for (let i = 0; i < charts.length; i += 3) {
+    lines.push(charts.slice(i, i + 3).join(" "));
+  }
+
+  return lines.join("\n\n");
 }
 
 async function generateConfidenceCone(issues) {
@@ -1164,8 +1224,8 @@ async function main() {
   const milestoneChart = generateMilestoneChart(milestoneData);
   const projectionChart = await generateProjectionChart(milestoneData, issues);
 
-  // Chart 3: Scope Creep by Milestone
-  const scopeCreepChart = await generateScopeCreepChart(milestoneData, issues);
+  // Chart 3: Scope Creep per Milestone (mini charts)
+  const scopeCreepChart = await generateScopeCreepCharts(milestoneData, issues);
 
   // Chart 4: Confidence Cone
   const confidenceCone = await generateConfidenceCone(issues);
