@@ -7,10 +7,10 @@
 ```mermaid
 xychart-beta
   title "WOPR Burn-Up — Scope vs Completed (hourly)"
-  x-axis ["10th 10h", "10th 14h", "10th 18h", "10th 22h", "11th 02h", "11th 06h", "11th 10h", "11th 14h", "11th 18h", "11th 22h", "12th 02h", "12th 06h", "12th 10h", "12th 14h", "12th 18h", "12th 22h"]
+  x-axis ["Feb 10", "​", "​​", "​​​", "​​​​", "​​​​​", "​​​​​​", "Feb 11", "​​​​​​​​", "​​​​​​​​​", "​​​​​​​​​​", "​​​​​​​​​​​", "​​​​​​​​​​​​", "​​​​​​​​​​​​​", "​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​", "Feb 12", "​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​"]
   y-axis "Issues" 0 --> 319
-  line [19, 19, 19, 19, 19, 19, 19, 89, 147, 216, 249, 249, 249, 249, 287, 290]
-  line [1, 1, 1, 4, 4, 4, 4, 29, 75, 115, 145, 145, 145, 150, 197, 198]
+  line [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 36, 89, 147, 147, 161, 216, 217, 249, 249, 249, 249, 249, 249, 249, 260, 287, 289, 290]
+  line [1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 14, 29, 57, 75, 92, 115, 115, 145, 145, 145, 145, 145, 145, 150, 173, 197, 197, 198]
 ```
 
 > **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work
@@ -20,7 +20,7 @@ xychart-beta
 ```mermaid
 xychart-beta
   title "Milestone Progress"
-  x-axis ["WebMCP Integration", "4. Dynamic Plugin UI", "6. Monetization", "5. P2P Network", "3. Platform Core", "Agent Tools", "Channel Expansion", "Continuous Delivery", "Security & Error Handling", "Code Quality", "Test Coverage", "Standalone WebUI", "Feature Completion", "2. Instance Hardening", "1. Plugin Types & Manifest"]
+  x-axis ["WebMCP Integrat…", "4. Dynamic Plug…", "6. Monetization", "5. P2P Network", "3. Platform Core", "Agent Tools", "Channel Expansi…", "Continuous Deli…", "Security & Erro…", "Code Quality", "Test Coverage", "Standalone WebUI", "Feature Complet…", "2. Instance Har…", "1. Plugin Types…"]
   y-axis "Issues" 0 --> 40
   bar [0, 0, 0, 0, 3, 2, 11, 31, 23, 31, 17, 22, 32, 4, 4]
   bar [17, 11, 1, 3, 30, 3, 11, 3, 2, 2, 0, 0, 0, 0, 0]
@@ -33,9 +33,9 @@ xychart-beta
 ```mermaid
 xychart-beta
   title "Velocity — Issues Closed per Hour"
-  x-axis ["10th 10h", "10th 14h", "10th 18h", "10th 22h", "11th 02h", "11th 06h", "11th 10h", "11th 14h", "11th 18h", "11th 22h", "12th 02h", "12th 06h", "12th 10h", "12th 14h", "12th 18h", "12th 22h"]
+  x-axis ["Feb 10", "​", "​​", "​​​", "​​​​", "​​​​​", "​​​​​​", "Feb 11", "​​​​​​​​", "​​​​​​​​​", "​​​​​​​​​​", "​​​​​​​​​​​", "​​​​​​​​​​​​", "​​​​​​​​​​​​​", "​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​", "Feb 12", "​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​​​", "​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​"]
   y-axis "Closed" 0 --> 21
-  bar [1, 0, 0, 3, 0, 0, 0, 11, 11, 13, 18, 0, 0, 1, 11, 0]
+  bar [1, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 11, 8, 11, 15, 13, 0, 18, 0, 0, 0, 0, 0, 1, 17, 11, 0, 0]
 ```
 
 ## Progress by Repo
@@ -100,4 +100,4 @@ pie
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:09 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:11 UTC*

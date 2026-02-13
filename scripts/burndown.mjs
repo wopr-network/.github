@@ -131,11 +131,17 @@ async function fetchAllIssues() {
   return issues;
 }
 
-function getHourLabel(isoStr) {
+const ZWSP = "\u200B"; // zero-width space for invisible unique labels
+
+function getHourLabel(isoStr, index, prevIsoStr) {
   const d = new Date(isoStr);
-  const day = d.getDate();
-  const hour = d.getHours().toString().padStart(2, "0");
-  return `${day}th ${hour}h`;
+  // Show date only at day boundaries
+  if (!prevIsoStr || new Date(prevIsoStr).getDate() !== d.getDate()) {
+    const month = d.toLocaleString("en", { month: "short" });
+    return `${month} ${d.getDate()}`;
+  }
+  // Unique invisible label for intermediate hours
+  return ZWSP.repeat(index);
 }
 
 function buildHourlySlots(earliest) {
@@ -150,9 +156,9 @@ function buildHourlySlots(earliest) {
     current.setHours(current.getHours() + 1);
   }
 
-  // Sample to max ~20 labels for readability
-  if (slots.length > 20) {
-    const step = Math.ceil(slots.length / 20);
+  // Sample to max ~60 slots (labels are invisible except day boundaries)
+  if (slots.length > 60) {
+    const step = Math.ceil(slots.length / 60);
     const sampled = [];
     for (let i = 0; i < slots.length; i += step) {
       sampled.push(slots[i]);
@@ -203,7 +209,7 @@ function buildBurnupData(issues) {
   }
 
   const slots = buildHourlySlots(earliest);
-  const slotLabels = slots.map((s) => getHourLabel(s));
+  const slotLabels = slots.map((s, i) => getHourLabel(s, i, i > 0 ? slots[i - 1] : null));
 
   // Overall burn-up: scope line + done line
   const scopeLine = slots.map((slotIso) => {
@@ -332,7 +338,11 @@ function generateMilestoneChart(milestones) {
 
   if (entries.length === 0) return "";
 
-  const names = entries.map(([n]) => `"${n}"`);
+  const names = entries.map(([n]) => {
+    // Truncate long milestone names
+    const short = n.length > 16 ? n.slice(0, 15) + "\u2026" : n;
+    return `"${short}"`;
+  });
   const done = entries.map(([, s]) => s.done);
   const open = entries.map(([, s]) => s.total - s.done);
 
