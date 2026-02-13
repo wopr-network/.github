@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Queries Linear for WOPR issues and generates Mermaid charts for the
- * GitHub org profile README:
+ * Queries Linear for WOPR issues and generates QuickChart.io chart images
+ * for the GitHub org profile README:
  *
  * 1. Burn-Up Chart — scope vs completed (hourly)
- * 2. Milestone Progress — bar chart per milestone
+ * 2. Milestone Progress — horizontal bar chart
  * 3. Velocity — issues closed per hour
- * 4. Priority Distribution — pie chart of open issues
- * 5. Issue State Breakdown — pie chart
+ * 4. Priority Distribution — doughnut chart of open issues
+ * 5. Issue State Breakdown — doughnut chart
  *
  * Requires: LINEAR_API_KEY env var
  * Usage: node scripts/burndown.mjs
@@ -131,17 +131,18 @@ async function fetchAllIssues() {
   return issues;
 }
 
-const ZWSP = "\u200B"; // zero-width space for invisible unique labels
-
-function getHourLabel(isoStr, index, prevIsoStr) {
+function getHourLabel(isoStr) {
   const d = new Date(isoStr);
-  // Show date only at day boundaries
-  if (!prevIsoStr || new Date(prevIsoStr).getDate() !== d.getDate()) {
-    const month = d.toLocaleString("en", { month: "short" });
-    return `${month} ${d.getDate()}`;
-  }
-  // Unique invisible label for intermediate hours
-  return ZWSP.repeat(index);
+  const month = d.toLocaleString("en", { month: "short" });
+  const day = d.getDate();
+  const hour = d.getHours().toString().padStart(2, "0");
+  return `${month} ${day} ${hour}:00`;
+}
+
+function quickchartUrl(config, width = 700, height = 300) {
+  const json = JSON.stringify(config);
+  const encoded = encodeURIComponent(json);
+  return `https://quickchart.io/chart?c=${encoded}&w=${width}&h=${height}&bkg=%23ffffff`;
 }
 
 function buildHourlySlots(earliest) {
@@ -156,9 +157,9 @@ function buildHourlySlots(earliest) {
     current.setHours(current.getHours() + 1);
   }
 
-  // Sample to max ~60 slots (labels are invisible except day boundaries)
-  if (slots.length > 60) {
-    const step = Math.ceil(slots.length / 60);
+  // Sample to max ~48 slots for chart readability
+  if (slots.length > 48) {
+    const step = Math.ceil(slots.length / 48);
     const sampled = [];
     for (let i = 0; i < slots.length; i += step) {
       sampled.push(slots[i]);
@@ -209,7 +210,7 @@ function buildBurnupData(issues) {
   }
 
   const slots = buildHourlySlots(earliest);
-  const slotLabels = slots.map((s, i) => getHourLabel(s, i, i > 0 ? slots[i - 1] : null));
+  const slotLabels = slots.map((s) => getHourLabel(s));
 
   // Overall burn-up: scope line + done line
   const scopeLine = slots.map((slotIso) => {
@@ -268,21 +269,47 @@ function buildSummaryStats(issues) {
   return { total, done, inProgress, backlog };
 }
 
-function generateMermaid(slotLabels, scopeLine, doneLine) {
-  const lines = [];
-  lines.push("```mermaid");
-  lines.push("xychart-beta");
-  lines.push('  title "WOPR Burn-Up \u2014 Scope vs Completed (hourly)"');
-  lines.push(`  x-axis [${slotLabels.map((w) => `"${w}"`).join(", ")}]`);
+function generateBurnupChart(slotLabels, scopeLine, doneLine) {
+  // Show every Nth label to avoid crowding
+  const step = Math.max(1, Math.ceil(slotLabels.length / 12));
+  const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
 
-  const max = Math.max(...scopeLine, ...doneLine);
-  lines.push(`  y-axis "Issues" 0 --> ${Math.ceil(max * 1.1)}`);
+  const config = {
+    type: "line",
+    data: {
+      labels: sparseLabels,
+      datasets: [
+        {
+          label: "Scope",
+          data: scopeLine,
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99,102,241,0.1)",
+          fill: true,
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+        {
+          label: "Completed",
+          data: doneLine,
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16,185,129,0.15)",
+          fill: true,
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Burn-Up \u2014 Scope vs Completed", fontSize: 16 },
+      scales: {
+        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
+        yAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Issues" } }],
+      },
+      legend: { position: "bottom" },
+    },
+  };
 
-  lines.push(`  line [${scopeLine.join(", ")}]`);
-  lines.push(`  line [${doneLine.join(", ")}]`);
-
-  lines.push("```");
-  return lines.join("\n");
+  return `![Burn-Up Chart](${quickchartUrl(config, 800, 300)})`;
 }
 
 function generateTable(repoStats) {
@@ -328,30 +355,46 @@ function buildMilestoneData(issues) {
   return milestones;
 }
 
-function generateMilestoneTable(milestones) {
+function generateMilestoneChart(milestones) {
   const entries = Object.entries(milestones)
     .filter(([, s]) => s.total > 0)
     .sort((a, b) => {
       const pctA = a[1].done / a[1].total;
       const pctB = b[1].done / b[1].total;
-      return pctA - pctB;
+      return pctB - pctA; // highest completion on top
     });
 
   if (entries.length === 0) return "";
 
-  const lines = [];
-  lines.push("| Milestone | Done | Open | Progress |");
-  lines.push("|-----------|------|------|----------|");
+  const config = {
+    type: "horizontalBar",
+    data: {
+      labels: entries.map(([n]) => n),
+      datasets: [
+        {
+          label: "Done",
+          data: entries.map(([, s]) => s.done),
+          backgroundColor: "#10b981",
+        },
+        {
+          label: "Remaining",
+          data: entries.map(([, s]) => s.total - s.done),
+          backgroundColor: "#e5e7eb",
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Milestone Progress", fontSize: 16 },
+      scales: {
+        xAxes: [{ stacked: true, ticks: { beginAtZero: true } }],
+        yAxes: [{ stacked: true, ticks: { fontSize: 11 } }],
+      },
+      legend: { position: "bottom" },
+    },
+  };
 
-  for (const [name, { total, done }] of entries) {
-    const open = total - done;
-    const pct = Math.round((done / total) * 100);
-    const filled = Math.round(pct / 10);
-    const bar = "\u2593".repeat(filled) + "\u2591".repeat(10 - filled);
-    lines.push(`| ${name} | ${done} | ${open} | ${bar} ${pct}% |`);
-  }
-
-  return lines.join("\n");
+  const height = Math.max(300, entries.length * 28 + 80);
+  return `![Milestone Progress](${quickchartUrl(config, 700, height)})`;
 }
 
 function buildVelocityData(issues, slots) {
@@ -375,18 +418,35 @@ function generateVelocityChart(slotLabels, velocityLine) {
   const max = Math.max(...velocityLine);
   if (max === 0) return "";
 
-  const lines = [];
-  lines.push("```mermaid");
-  lines.push("xychart-beta");
-  lines.push('  title "Velocity \u2014 Issues Closed per Hour"');
-  lines.push(`  x-axis [${slotLabels.map((w) => `"${w}"`).join(", ")}]`);
-  lines.push(`  y-axis "Closed" 0 --> ${Math.ceil(max * 1.15)}`);
-  lines.push(`  bar [${velocityLine.join(", ")}]`);
-  lines.push("```");
-  return lines.join("\n");
+  const step = Math.max(1, Math.ceil(slotLabels.length / 12));
+  const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
+
+  const config = {
+    type: "bar",
+    data: {
+      labels: sparseLabels,
+      datasets: [
+        {
+          label: "Issues Closed",
+          data: velocityLine,
+          backgroundColor: "#6366f1",
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Velocity \u2014 Issues Closed per Hour", fontSize: 16 },
+      scales: {
+        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
+        yAxes: [{ ticks: { beginAtZero: true, stepSize: 1 }, scaleLabel: { display: true, labelString: "Closed" } }],
+      },
+      legend: { display: false },
+    },
+  };
+
+  return `![Velocity](${quickchartUrl(config, 800, 250)})`;
 }
 
-function generatePriorityPie(issues) {
+function generatePriorityChart(issues) {
   const counts = {};
   for (const issue of issues) {
     const type = issue.state.type;
@@ -397,29 +457,54 @@ function generatePriorityPie(issues) {
 
   if (Object.keys(counts).length === 0) return "";
 
-  // Order: Urgent, High, Normal, Low, None
   const order = ["Urgent", "High", "Normal", "Low", "None"];
-  const lines = [];
-  lines.push("```mermaid");
-  lines.push("pie");
-  lines.push('  title "Open Issues by Priority"');
-  for (const name of order) {
-    if (counts[name]) lines.push(`  "${name}" : ${counts[name]}`);
+  const colors = ["#ef4444", "#f97316", "#eab308", "#3b82f6", "#9ca3af"];
+  const labels = [];
+  const data = [];
+  const bgColors = [];
+
+  for (let i = 0; i < order.length; i++) {
+    if (counts[order[i]]) {
+      labels.push(order[i]);
+      data.push(counts[order[i]]);
+      bgColors.push(colors[i]);
+    }
   }
-  lines.push("```");
-  return lines.join("\n");
+
+  const config = {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: bgColors }],
+    },
+    options: {
+      title: { display: true, text: "Open Issues by Priority", fontSize: 14 },
+      legend: { position: "right" },
+    },
+  };
+
+  return `![Priority](${quickchartUrl(config, 400, 250)})`;
 }
 
-function generateStatePie(stats) {
-  const lines = [];
-  lines.push("```mermaid");
-  lines.push("pie");
-  lines.push('  title "Issue State Breakdown"');
-  if (stats.done > 0) lines.push(`  "Completed" : ${stats.done}`);
-  if (stats.inProgress > 0) lines.push(`  "In Progress" : ${stats.inProgress}`);
-  if (stats.backlog > 0) lines.push(`  "Backlog" : ${stats.backlog}`);
-  lines.push("```");
-  return lines.join("\n");
+function generateStateChart(stats) {
+  const config = {
+    type: "doughnut",
+    data: {
+      labels: ["Completed", "In Progress", "Backlog"],
+      datasets: [
+        {
+          data: [stats.done, stats.inProgress, stats.backlog],
+          backgroundColor: ["#10b981", "#6366f1", "#e5e7eb"],
+        },
+      ],
+    },
+    options: {
+      title: { display: true, text: "Issue State Breakdown", fontSize: 14 },
+      legend: { position: "right" },
+    },
+  };
+
+  return `![States](${quickchartUrl(config, 400, 250)})`;
 }
 
 async function main() {
@@ -434,21 +519,21 @@ async function main() {
   const stats = buildSummaryStats(issues);
 
   // Chart 1: Burn-Up
-  const burnup = generateMermaid(slotLabels, scopeLine, doneLine);
+  const burnup = generateBurnupChart(slotLabels, scopeLine, doneLine);
 
-  // Chart 2: Milestone Progress (table — too many milestones for a bar chart)
+  // Chart 2: Milestone Progress
   const milestoneData = buildMilestoneData(issues);
-  const milestoneTable = generateMilestoneTable(milestoneData);
+  const milestoneChart = generateMilestoneChart(milestoneData);
 
   // Chart 3: Velocity (per hour)
   const velocityLine = buildVelocityData(issues, slots);
   const velocityChart = generateVelocityChart(slotLabels, velocityLine);
 
   // Chart 4: Priority Distribution (open issues)
-  const priorityPie = generatePriorityPie(issues);
+  const priorityChart = generatePriorityChart(issues);
 
   // Chart 5: State Breakdown
-  const statePie = generateStatePie(stats);
+  const stateChart = generateStateChart(stats);
 
   const table = generateTable(repoStats);
   const now = new Date().toISOString().slice(0, 16).replace("T", " ");
@@ -457,16 +542,14 @@ async function main() {
 
 **AI-native multi-channel bot platform** \u2014 Discord, Slack, Telegram, WhatsApp, Signal, IRC, and more.
 
-## Burn-Up Chart
+## Burn-Up
 
-${burnup}
+${burnup}`];
 
-> **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work`];
+  if (milestoneChart) {
+    sections.push(`## Milestones
 
-  if (milestoneTable) {
-    sections.push(`## Milestone Progress
-
-${milestoneTable}`);
+${milestoneChart}`);
   }
 
   if (velocityChart) {
@@ -479,12 +562,11 @@ ${velocityChart}`);
 
 ${table}`);
 
-  // Pie charts side by side in a table
-  if (priorityPie || statePie) {
-    const pies = [];
-    if (statePie) pies.push(`### Issue States\n\n${statePie}`);
-    if (priorityPie) pies.push(`### Open by Priority\n\n${priorityPie}`);
-    sections.push(pies.join("\n\n"));
+  // Doughnut charts side by side
+  if (stateChart || priorityChart) {
+    sections.push(`## Distribution
+
+${stateChart || ""} ${priorityChart || ""}`);
   }
 
   sections.push(`## Summary
