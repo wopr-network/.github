@@ -4,7 +4,7 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-f576107f-cce4-4da3-abfd-30b6d713d1e7)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-b740880c-f8c8-4e19-9a27-e9ccd7aae7aa)
 
 ## Milestones
 
@@ -12,19 +12,19 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-43a6eb99-6efa-4e78-a03e-8f281969c171)
+![Projection](https://quickchart.io/chart/render/zf-8b28f583-f57e-40f2-a9f3-56128e41815b)
 
 ## Confidence Cone
 
-![Confidence Cone](https://quickchart.io/chart/render/zf-e9a30bc8-a0e8-4af7-91af-636d4426cc4e)
+![Confidence Cone](https://quickchart.io/chart/render/zf-c41113df-daee-4849-9c31-f4a615c5d551)
 
 ## Scope Creep
 
-![Scope Creep](https://quickchart.io/chart/render/zf-480ab990-1a20-4d80-a010-f327c0420dc1)
+![Scope Creep](https://quickchart.io/chart/render/zf-43a95ae5-1a46-41d6-b2bc-a2c5fc1e3fad)
 
 ## Priority Burndown
 
-![Priority Burndown](https://quickchart.io/chart/render/zf-a2173878-8139-431c-ae42-e3058e94e3f8)
+![Priority Burndown](https://quickchart.io/chart/render/zf-fd041113-9d21-41d9-812d-796b478619d8)
 
 ## Velocity
 
@@ -83,4 +83,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:38 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:43 UTC*

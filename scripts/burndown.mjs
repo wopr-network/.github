@@ -800,12 +800,13 @@ async function generateConfidenceCone(issues) {
   const expData = [];
   const pesData = [];
 
-  // Add "Today" as first point
   const labelStep = Math.max(1, Math.ceil(maxDays / 16));
+  const fmtDate = (d) => `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`;
+
   for (let d = 0; d <= maxDays; d++) {
     const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
     if (d % labelStep === 0) {
-      labels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()}`);
+      labels.push(fmtDate(future));
     } else {
       labels.push("");
     }
@@ -814,36 +815,46 @@ async function generateConfidenceCone(issues) {
     pesData.push(Math.max(0, remaining - pessimistic * d));
   }
 
+  // Completion date labels
+  const optDate = fmtDate(new Date(now.getTime() + optDays * 24 * 60 * 60 * 1000));
+  const expDate = fmtDate(new Date(now.getTime() + expDays * 24 * 60 * 60 * 1000));
+  const pesDate = fmtDate(new Date(now.getTime() + pesDays * 24 * 60 * 60 * 1000));
+
   const config = {
     type: "line",
     data: {
       labels,
       datasets: [
+        // Outer cone: pessimistic (top boundary), fills down to optimistic (dataset index 2)
         {
-          label: `Optimistic — 3-day avg (${Math.round(optimistic * 10) / 10}/day)`,
-          data: optData,
-          borderColor: "#10b981",
-          backgroundColor: "rgba(16,185,129,0.08)",
-          pointRadius: 0,
-          borderWidth: 2,
-          fill: false,
-        },
-        {
-          label: `Expected — 7-day avg (${Math.round(expected * 10) / 10}/day)`,
-          data: expData,
-          borderColor: "#6366f1",
-          backgroundColor: "rgba(99,102,241,0.1)",
-          pointRadius: 0,
-          borderWidth: 2.5,
-          fill: false,
-        },
-        {
-          label: `Pessimistic — 14-day avg (${Math.round(pessimistic * 10) / 10}/day)`,
+          label: `Pessimistic — done ${pesDate} (${Math.round(pessimistic * 10) / 10}/day)`,
           data: pesData,
           borderColor: "#ef4444",
-          backgroundColor: "rgba(239,68,68,0.08)",
+          backgroundColor: "rgba(239,68,68,0.12)",
           pointRadius: 0,
-          borderWidth: 2,
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          fill: 2, // fill down to optimistic (index 2)
+        },
+        // Expected line — bold, center of cone
+        {
+          label: `Expected — done ${expDate} (${Math.round(expected * 10) / 10}/day)`,
+          data: expData,
+          borderColor: "#6366f1",
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 3,
+          fill: false,
+        },
+        // Optimistic (bottom boundary)
+        {
+          label: `Optimistic — done ${optDate} (${Math.round(optimistic * 10) / 10}/day)`,
+          data: optData,
+          borderColor: "#10b981",
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [6, 3],
           fill: false,
         },
       ],
@@ -859,15 +870,42 @@ async function generateConfidenceCone(issues) {
       },
       legend: { position: "bottom" },
       annotation: {
-        annotations: [{
-          type: "line",
-          mode: "horizontal",
-          scaleID: "y-axis-0",
-          value: 0,
-          borderColor: "#10b981",
-          borderWidth: 1,
-          borderDash: [4, 4],
-        }],
+        annotations: [
+          // "Today" vertical line
+          {
+            type: "line",
+            mode: "vertical",
+            scaleID: "x-axis-0",
+            value: labels[0],
+            borderColor: "rgba(99,102,241,0.5)",
+            borderWidth: 2,
+            borderDash: [4, 4],
+            label: {
+              enabled: true,
+              content: "Today",
+              position: "top",
+              backgroundColor: "rgba(99,102,241,0.8)",
+              fontSize: 11,
+            },
+          },
+          // Zero line
+          {
+            type: "line",
+            mode: "horizontal",
+            scaleID: "y-axis-0",
+            value: 0,
+            borderColor: "#10b981",
+            borderWidth: 1,
+            borderDash: [4, 4],
+            label: {
+              enabled: true,
+              content: "Done!",
+              position: "right",
+              backgroundColor: "rgba(16,185,129,0.8)",
+              fontSize: 11,
+            },
+          },
+        ],
       },
     },
   };
