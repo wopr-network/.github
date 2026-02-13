@@ -7,7 +7,7 @@
 ```mermaid
 xychart-beta
   title "WOPR Burn-Up — Scope vs Completed (hourly)"
-  x-axis ["Feb 10 10h", "14h", "18h", "22h", "Feb 11 02h", "06h", "10h", "14h", "18h", "22h", "Feb 12 02h", "06h", "10h", "14h", "18h", "22h"]
+  x-axis ["10th 10h", "10th 14h", "10th 18h", "10th 22h", "11th 02h", "11th 06h", "11th 10h", "11th 14h", "11th 18h", "11th 22h", "12th 02h", "12th 06h", "12th 10h", "12th 14h", "12th 18h", "12th 22h"]
   y-axis "Issues" 0 --> 319
   line [19, 19, 19, 19, 19, 19, 19, 89, 147, 216, 249, 249, 249, 249, 287, 290]
   line [1, 1, 1, 4, 4, 4, 4, 29, 75, 115, 145, 145, 145, 150, 197, 198]
@@ -33,7 +33,7 @@ xychart-beta
 ```mermaid
 xychart-beta
   title "Velocity — Issues Closed per Hour"
-  x-axis ["Feb 10 10h", "14h", "18h", "22h", "Feb 11 02h", "06h", "10h", "14h", "18h", "22h", "Feb 12 02h", "06h", "10h", "14h", "18h", "22h"]
+  x-axis ["10th 10h", "10th 14h", "10th 18h", "10th 22h", "11th 02h", "11th 06h", "11th 10h", "11th 14h", "11th 18h", "11th 22h", "12th 02h", "12th 06h", "12th 10h", "12th 14h", "12th 18h", "12th 22h"]
   y-axis "Closed" 0 --> 21
   bar [1, 0, 0, 3, 0, 0, 0, 11, 11, 13, 18, 0, 0, 1, 11, 0]
 ```
@@ -100,4 +100,4 @@ pie
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:06 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:09 UTC*

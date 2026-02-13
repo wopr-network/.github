@@ -131,17 +131,11 @@ async function fetchAllIssues() {
   return issues;
 }
 
-function getHourLabel(isoStr, prevIsoStr) {
+function getHourLabel(isoStr) {
   const d = new Date(isoStr);
   const day = d.getDate();
   const hour = d.getHours().toString().padStart(2, "0");
-
-  // Show month+day on first label or when the day changes
-  if (!prevIsoStr || new Date(prevIsoStr).getDate() !== day) {
-    const month = d.toLocaleString("en", { month: "short" });
-    return `${month} ${day} ${hour}h`;
-  }
-  return `${hour}h`;
+  return `${day}th ${hour}h`;
 }
 
 function buildHourlySlots(earliest) {
@@ -209,7 +203,7 @@ function buildBurnupData(issues) {
   }
 
   const slots = buildHourlySlots(earliest);
-  const slotLabels = slots.map((s, i) => getHourLabel(s, i > 0 ? slots[i - 1] : null));
+  const slotLabels = slots.map((s) => getHourLabel(s));
 
   // Overall burn-up: scope line + done line
   const scopeLine = slots.map((slotIso) => {
