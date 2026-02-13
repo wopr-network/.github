@@ -7,7 +7,7 @@
 ```mermaid
 xychart-beta
   title "WOPR Burndown — Open Issues by Repo (hourly)"
-  x-axis ["Feb 10 10:00", "Feb 10 12:00", "Feb 10 14:00", "Feb 10 16:00", "Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 21:00"]
+  x-axis ["Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 22:00", "Feb 13 00:00", "Feb 13 02:00", "Feb 13 04:00", "Feb 13 05:00"]
   y-axis "Open Issues" 0 --> 22
   line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 9, 12, 12, 12, 12, 12, 12, 12, 13, 17, 17, 17]
   line [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 1, 0, 0, 0]
@@ -72,4 +72,4 @@ xychart-beta
 
 ---
 
-*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) — last run: 2026-02-13 05:53 UTC*
+*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) — last run: 2026-02-13 05:54 UTC*
