@@ -4,7 +4,7 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-30d7b1f5-181f-4caf-8ab4-a4d9a08fadfc)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-6b1ec9ac-97f3-498f-b1d0-9caf41a5ad69)
 
 ## Milestones
 
@@ -12,23 +12,23 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-93680df6-89ea-4879-ac32-bf0f90f23bae)
+![Projection](https://quickchart.io/chart/render/zf-0276e7d8-36f0-45f4-91bf-790a16206185)
 
 ## Confidence Cone
 
-![Confidence Cone](https://quickchart.io/chart/render/zf-5a177ebc-f3e1-4a87-8a97-f57487e5bdcf)
+![Confidence Cone](https://quickchart.io/chart/render/zf-8675ef75-9ddd-460a-aa01-dd2bd3772ebe)
 
 ## Scope Creep
 
-![Scope Creep](https://quickchart.io/chart/render/zf-b59692c9-50cb-479f-8515-4fbe8d2fed04)
+![Scope Creep](https://quickchart.io/chart/render/zf-07c99ecb-6d69-44a8-999f-24d559cc8ed5)
 
 ## Priority Burndown
 
-![Priority Burndown](https://quickchart.io/chart/render/zf-dfde8214-bf8a-4b44-a803-20fc090d494d)
+![Priority Burndown](https://quickchart.io/chart/render/zf-561b119c-0c70-419b-b4fe-4f4dfb1df308)
 
 ## Velocity
 
-![Velocity](https://quickchart.io/chart?c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Feb%2010%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2010%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2022%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2004%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2010%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2016%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2022%3A00%22%2C%22%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Issues%20Closed%22%2C%22data%22%3A%5B1%2C0%2C0%2C0%2C0%2C0%2C3%2C0%2C0%2C0%2C0%2C0%2C0%2C2%2C11%2C8%2C11%2C15%2C13%2C0%2C18%2C0%2C0%2C0%2C0%2C0%2C1%2C17%2C11%2C0%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%236366f1%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Velocity%20%E2%80%94%20Issues%20Closed%20per%20Hour%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22ticks%22%3A%7B%22maxRotation%22%3A45%2C%22fontSize%22%3A10%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%2C%22stepSize%22%3A1%7D%2C%22scaleLabel%22%3A%7B%22display%22%3Atrue%2C%22labelString%22%3A%22Closed%22%7D%7D%5D%7D%2C%22legend%22%3A%7B%22display%22%3Afalse%7D%7D%7D&w=800&h=250&bkg=%23ffffff)
+![Velocity](https://quickchart.io/chart?c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Feb%2010%2018%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2000%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2006%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2012%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2011%2018%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2000%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2006%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2012%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2012%2018%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2013%2000%3A00%22%2C%22%22%2C%22%22%2C%22Feb%2013%2006%3A00%22%2C%22%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Issues%20Closed%22%2C%22data%22%3A%5B1%2C0%2C0%2C0%2C0%2C0%2C3%2C0%2C0%2C0%2C0%2C0%2C0%2C2%2C11%2C8%2C11%2C15%2C13%2C0%2C18%2C0%2C0%2C0%2C0%2C0%2C1%2C17%2C11%2C0%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%236366f1%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Velocity%20%E2%80%94%20Issues%20Closed%20per%20Hour%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22ticks%22%3A%7B%22maxRotation%22%3A45%2C%22fontSize%22%3A10%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%2C%22stepSize%22%3A1%7D%2C%22scaleLabel%22%3A%7B%22display%22%3Atrue%2C%22labelString%22%3A%22Closed%22%7D%7D%5D%7D%2C%22legend%22%3A%7B%22display%22%3Afalse%7D%7D%7D&w=800&h=250&bkg=%23ffffff)
 
 ## Progress by Category
 
@@ -83,4 +83,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:47 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 07:50 UTC*
