@@ -328,35 +328,29 @@ function buildMilestoneData(issues) {
   return milestones;
 }
 
-function generateMilestoneChart(milestones) {
-  const entries = Object.entries(milestones).sort((a, b) => {
-    // Sort by completion % ascending (least done first)
-    const pctA = a[1].total > 0 ? a[1].done / a[1].total : 0;
-    const pctB = b[1].total > 0 ? b[1].done / b[1].total : 0;
-    return pctA - pctB;
-  });
+function generateMilestoneTable(milestones) {
+  const entries = Object.entries(milestones)
+    .filter(([, s]) => s.total > 0)
+    .sort((a, b) => {
+      const pctA = a[1].done / a[1].total;
+      const pctB = b[1].done / b[1].total;
+      return pctA - pctB;
+    });
 
   if (entries.length === 0) return "";
 
-  const names = entries.map(([n]) => {
-    // Truncate long milestone names
-    const short = n.length > 16 ? n.slice(0, 15) + "\u2026" : n;
-    return `"${short}"`;
-  });
-  const done = entries.map(([, s]) => s.done);
-  const open = entries.map(([, s]) => s.total - s.done);
-
-  const max = Math.max(...entries.map(([, s]) => s.total));
-
   const lines = [];
-  lines.push("```mermaid");
-  lines.push("xychart-beta");
-  lines.push('  title "Milestone Progress"');
-  lines.push(`  x-axis [${names.join(", ")}]`);
-  lines.push(`  y-axis "Issues" 0 --> ${Math.ceil(max * 1.15)}`);
-  lines.push(`  bar [${done.join(", ")}]`);
-  lines.push(`  bar [${open.join(", ")}]`);
-  lines.push("```");
+  lines.push("| Milestone | Done | Open | Progress |");
+  lines.push("|-----------|------|------|----------|");
+
+  for (const [name, { total, done }] of entries) {
+    const open = total - done;
+    const pct = Math.round((done / total) * 100);
+    const filled = Math.round(pct / 10);
+    const bar = "\u2593".repeat(filled) + "\u2591".repeat(10 - filled);
+    lines.push(`| ${name} | ${done} | ${open} | ${bar} ${pct}% |`);
+  }
+
   return lines.join("\n");
 }
 
@@ -442,9 +436,9 @@ async function main() {
   // Chart 1: Burn-Up
   const burnup = generateMermaid(slotLabels, scopeLine, doneLine);
 
-  // Chart 2: Milestone Progress
+  // Chart 2: Milestone Progress (table — too many milestones for a bar chart)
   const milestoneData = buildMilestoneData(issues);
-  const milestoneChart = generateMilestoneChart(milestoneData);
+  const milestoneTable = generateMilestoneTable(milestoneData);
 
   // Chart 3: Velocity (per hour)
   const velocityLine = buildVelocityData(issues, slots);
@@ -469,12 +463,10 @@ ${burnup}
 
 > **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work`];
 
-  if (milestoneChart) {
+  if (milestoneTable) {
     sections.push(`## Milestone Progress
 
-${milestoneChart}
-
-> **Dark bars** = completed | **Light bars** = remaining`);
+${milestoneTable}`);
   }
 
   if (velocityChart) {

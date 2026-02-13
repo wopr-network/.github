@@ -17,16 +17,23 @@ xychart-beta
 
 ## Milestone Progress
 
-```mermaid
-xychart-beta
-  title "Milestone Progress"
-  x-axis ["WebMCP Integrat…", "4. Dynamic Plug…", "6. Monetization", "5. P2P Network", "3. Platform Core", "Agent Tools", "Channel Expansi…", "Continuous Deli…", "Security & Erro…", "Code Quality", "Test Coverage", "Standalone WebUI", "Feature Complet…", "2. Instance Har…", "1. Plugin Types…"]
-  y-axis "Issues" 0 --> 40
-  bar [0, 0, 0, 0, 3, 2, 11, 31, 23, 31, 17, 22, 32, 4, 4]
-  bar [17, 11, 1, 3, 30, 3, 11, 3, 2, 2, 0, 0, 0, 0, 0]
-```
-
-> **Dark bars** = completed | **Light bars** = remaining
+| Milestone | Done | Open | Progress |
+|-----------|------|------|----------|
+| WebMCP Integration | 0 | 17 | ░░░░░░░░░░ 0% |
+| 4. Dynamic Plugin UI | 0 | 11 | ░░░░░░░░░░ 0% |
+| 6. Monetization | 0 | 1 | ░░░░░░░░░░ 0% |
+| 5. P2P Network | 0 | 3 | ░░░░░░░░░░ 0% |
+| 3. Platform Core | 3 | 30 | ▓░░░░░░░░░ 9% |
+| Agent Tools | 2 | 3 | ▓▓▓▓░░░░░░ 40% |
+| Channel Expansion | 11 | 11 | ▓▓▓▓▓░░░░░ 50% |
+| Continuous Delivery | 31 | 3 | ▓▓▓▓▓▓▓▓▓░ 91% |
+| Security & Error Handling | 23 | 2 | ▓▓▓▓▓▓▓▓▓░ 92% |
+| Code Quality | 31 | 2 | ▓▓▓▓▓▓▓▓▓░ 94% |
+| Test Coverage | 17 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| Standalone WebUI | 22 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| Feature Completion | 32 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| 2. Instance Hardening | 4 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
+| 1. Plugin Types & Manifest | 4 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
 
 ## Velocity
 
@@ -100,4 +107,4 @@ pie
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:11 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:13 UTC*
