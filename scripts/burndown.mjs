@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 /**
- * Queries Linear for WOPR issues and generates a Mermaid xychart burn-up
- * chart broken out by repo, written into profile/README.md.
+ * Queries Linear for WOPR issues and generates Mermaid charts for the
+ * GitHub org profile README:
  *
- * Two lines: total scope (created) and completed (done).
- * The gap between them = remaining work.
+ * 1. Burn-Up Chart — scope vs completed (hourly)
+ * 2. Milestone Progress — bar chart per milestone
+ * 3. Velocity — issues closed per hour
+ * 4. Priority Distribution — pie chart of open issues
+ * 5. Issue State Breakdown — pie chart
  *
  * Requires: LINEAR_API_KEY env var
  * Usage: node scripts/burndown.mjs
@@ -29,6 +32,8 @@ const GROUPING_RULES = [
   { pattern: /^tech-debt$|^refactor$/, display: "refactor" },
   { pattern: /^plugin-/, display: null }, // strip "plugin-" prefix
 ];
+
+const PRIORITY_NAMES = ["None", "Urgent", "High", "Normal", "Low"];
 
 function labelToDisplayName(labelName) {
   for (const rule of GROUPING_RULES) {
@@ -107,8 +112,10 @@ async function fetchAllIssues() {
             identifier
             createdAt
             completedAt
+            priority
             state { type }
             labels { nodes { name } }
+            projectMilestone { id name }
           }
           pageInfo { hasNextPage endCursor }
         }
@@ -237,7 +244,7 @@ function buildBurnupData(issues) {
     repoStats[displayName] = { total, done, open };
   }
 
-  return { slotLabels, scopeLine, doneLine, repoStats };
+  return { slotLabels, scopeLine, doneLine, repoStats, slots };
 }
 
 function buildSummaryStats(issues) {
@@ -298,6 +305,120 @@ function generateTable(repoStats) {
   return lines.join("\n");
 }
 
+function buildMilestoneData(issues) {
+  const milestones = {};
+
+  for (const issue of issues) {
+    const ms = issue.projectMilestone;
+    if (!ms) continue;
+    // Skip deleted milestones
+    if (ms.name.startsWith("[DELETED]")) continue;
+
+    if (!milestones[ms.name]) milestones[ms.name] = { total: 0, done: 0 };
+    milestones[ms.name].total++;
+    const type = issue.state.type;
+    if (type === "completed" || type === "cancelled") milestones[ms.name].done++;
+  }
+
+  return milestones;
+}
+
+function generateMilestoneChart(milestones) {
+  const entries = Object.entries(milestones).sort((a, b) => {
+    // Sort by completion % ascending (least done first)
+    const pctA = a[1].total > 0 ? a[1].done / a[1].total : 0;
+    const pctB = b[1].total > 0 ? b[1].done / b[1].total : 0;
+    return pctA - pctB;
+  });
+
+  if (entries.length === 0) return "";
+
+  const names = entries.map(([n]) => `"${n}"`);
+  const done = entries.map(([, s]) => s.done);
+  const open = entries.map(([, s]) => s.total - s.done);
+
+  const max = Math.max(...entries.map(([, s]) => s.total));
+
+  const lines = [];
+  lines.push("```mermaid");
+  lines.push("xychart-beta");
+  lines.push('  title "Milestone Progress"');
+  lines.push(`  x-axis [${names.join(", ")}]`);
+  lines.push(`  y-axis "Issues" 0 --> ${Math.ceil(max * 1.15)}`);
+  lines.push(`  bar [${done.join(", ")}]`);
+  lines.push(`  bar [${open.join(", ")}]`);
+  lines.push("```");
+  return lines.join("\n");
+}
+
+function buildVelocityData(issues, slots) {
+  // Count issues completed in each hourly slot
+  return slots.map((slotIso) => {
+    const slotStart = new Date(slotIso);
+    const slotEnd = new Date(slotIso);
+    slotEnd.setHours(slotEnd.getHours() + 1);
+
+    let count = 0;
+    for (const issue of issues) {
+      if (!issue.completedAt) continue;
+      const completed = new Date(issue.completedAt);
+      if (completed >= slotStart && completed < slotEnd) count++;
+    }
+    return count;
+  });
+}
+
+function generateVelocityChart(slotLabels, velocityLine) {
+  const max = Math.max(...velocityLine);
+  if (max === 0) return "";
+
+  const lines = [];
+  lines.push("```mermaid");
+  lines.push("xychart-beta");
+  lines.push('  title "Velocity \u2014 Issues Closed per Hour"');
+  lines.push(`  x-axis [${slotLabels.map((w) => `"${w}"`).join(", ")}]`);
+  lines.push(`  y-axis "Closed" 0 --> ${Math.ceil(max * 1.15)}`);
+  lines.push(`  bar [${velocityLine.join(", ")}]`);
+  lines.push("```");
+  return lines.join("\n");
+}
+
+function generatePriorityPie(issues) {
+  const counts = {};
+  for (const issue of issues) {
+    const type = issue.state.type;
+    if (type === "completed" || type === "cancelled") continue;
+    const name = PRIORITY_NAMES[issue.priority] || "None";
+    counts[name] = (counts[name] || 0) + 1;
+  }
+
+  if (Object.keys(counts).length === 0) return "";
+
+  // Order: Urgent, High, Normal, Low, None
+  const order = ["Urgent", "High", "Normal", "Low", "None"];
+  const lines = [];
+  lines.push("```mermaid");
+  lines.push("pie");
+  lines.push('  title "Open Issues by Priority"');
+  for (const name of order) {
+    if (counts[name]) lines.push(`  "${name}" : ${counts[name]}`);
+  }
+  lines.push("```");
+  return lines.join("\n");
+}
+
+function generateStatePie(stats) {
+  const lines = [];
+  lines.push("```mermaid");
+  lines.push("pie");
+  lines.push('  title "Issue State Breakdown"');
+  if (stats.done > 0) lines.push(`  "Completed" : ${stats.done}`);
+  if (stats.inProgress > 0) lines.push(`  "In Progress" : ${stats.inProgress}`);
+  if (stats.backlog > 0) lines.push(`  "Backlog" : ${stats.backlog}`);
+  lines.push("```");
+  return lines.join("\n");
+}
+
 async function main() {
   console.log("Fetching labels from Linear...");
   await fetchLabels();
@@ -306,27 +427,66 @@ async function main() {
   const issues = await fetchAllIssues();
   console.log(`Fetched ${issues.length} issues`);
 
-  const { slotLabels, scopeLine, doneLine, repoStats } = buildBurnupData(issues);
+  const { slotLabels, scopeLine, doneLine, repoStats, slots } = buildBurnupData(issues);
   const stats = buildSummaryStats(issues);
-  const mermaid = generateMermaid(slotLabels, scopeLine, doneLine);
+
+  // Chart 1: Burn-Up
+  const burnup = generateMermaid(slotLabels, scopeLine, doneLine);
+
+  // Chart 2: Milestone Progress
+  const milestoneData = buildMilestoneData(issues);
+  const milestoneChart = generateMilestoneChart(milestoneData);
+
+  // Chart 3: Velocity (per hour)
+  const velocityLine = buildVelocityData(issues, slots);
+  const velocityChart = generateVelocityChart(slotLabels, velocityLine);
+
+  // Chart 4: Priority Distribution (open issues)
+  const priorityPie = generatePriorityPie(issues);
+
+  // Chart 5: State Breakdown
+  const statePie = generateStatePie(stats);
+
   const table = generateTable(repoStats);
   const now = new Date().toISOString().slice(0, 16).replace("T", " ");
 
-  const readme = `# WOPR Network
+  const sections = [`# WOPR Network
 
 **AI-native multi-channel bot platform** \u2014 Discord, Slack, Telegram, WhatsApp, Signal, IRC, and more.
 
 ## Burn-Up Chart
 
-${mermaid}
+${burnup}
 
-> **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work
+> **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work`];
 
-### Progress by Repo
+  if (milestoneChart) {
+    sections.push(`## Milestone Progress
 
-${table}
+${milestoneChart}
 
-### Summary
+> **Dark bars** = completed | **Light bars** = remaining`);
+  }
+
+  if (velocityChart) {
+    sections.push(`## Velocity
+
+${velocityChart}`);
+  }
+
+  sections.push(`## Progress by Repo
+
+${table}`);
+
+  // Pie charts side by side in a table
+  if (priorityPie || statePie) {
+    const pies = [];
+    if (statePie) pies.push(`### Issue States\n\n${statePie}`);
+    if (priorityPie) pies.push(`### Open by Priority\n\n${priorityPie}`);
+    sections.push(pies.join("\n\n"));
+  }
+
+  sections.push(`## Summary
 
 | Metric | Count |
 |--------|-------|
@@ -334,12 +494,13 @@ ${table}
 | Completed | ${stats.done} |
 | In Progress | ${stats.inProgress} |
 | Backlog | ${stats.backlog} |
-| Completion | ${Math.round((stats.done / stats.total) * 100)}% |
+| Completion | ${stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0}% |
 
 ---
 
-*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) \u2014 last run: ${now} UTC*
-`;
+*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) \u2014 last run: ${now} UTC*`);
+
+  const readme = sections.join("\n\n") + "\n";
 
   const { writeFileSync } = await import("node:fs");
   writeFileSync("profile/README.md", readme);
@@ -347,7 +508,7 @@ ${table}
   console.log(
     `Stats: ${stats.total} total, ${stats.done} done, ${stats.inProgress} in progress, ${stats.backlog} backlog`,
   );
-  console.log(`Chart: ${slotLabels.length} time slots, scope peak: ${Math.max(...scopeLine)}, done peak: ${Math.max(...doneLine)}`);
+  console.log(`Charts: burn-up (${slotLabels.length} slots), milestones (${Object.keys(milestoneData).length}), velocity, priority pie, state pie`);
 }
 
 main().catch((e) => {

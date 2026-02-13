@@ -7,7 +7,7 @@
 ```mermaid
 xychart-beta
   title "WOPR Burn-Up — Scope vs Completed (hourly)"
-  x-axis ["Feb 10 10:00", "Feb 10 12:00", "Feb 10 14:00", "Feb 10 16:00", "Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 21:00"]
+  x-axis ["Feb 10 10:00", "Feb 10 12:00", "Feb 10 14:00", "Feb 10 16:00", "Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 22:00"]
   y-axis "Issues" 0 --> 319
   line [19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 36, 89, 147, 147, 161, 216, 217, 249, 249, 249, 249, 249, 249, 249, 260, 287, 289, 290]
   line [1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 4, 14, 29, 57, 75, 92, 115, 115, 145, 145, 145, 145, 145, 145, 150, 173, 197, 197, 198]
@@ -15,7 +15,30 @@ xychart-beta
 
 > **Upper line** = total scope (issues created) | **Lower line** = completed | **Gap** = remaining work
 
-### Progress by Repo
+## Milestone Progress
+
+```mermaid
+xychart-beta
+  title "Milestone Progress"
+  x-axis ["WebMCP Integration", "4. Dynamic Plugin UI", "6. Monetization", "5. P2P Network", "3. Platform Core", "Agent Tools", "Channel Expansion", "Continuous Delivery", "Security & Error Handling", "Code Quality", "Test Coverage", "Standalone WebUI", "Feature Completion", "2. Instance Hardening", "1. Plugin Types & Manifest"]
+  y-axis "Issues" 0 --> 40
+  bar [0, 0, 0, 0, 3, 2, 11, 31, 23, 31, 17, 22, 32, 4, 4]
+  bar [17, 11, 1, 3, 30, 3, 11, 3, 2, 2, 0, 0, 0, 0, 0]
+```
+
+> **Dark bars** = completed | **Light bars** = remaining
+
+## Velocity
+
+```mermaid
+xychart-beta
+  title "Velocity — Issues Closed per Hour"
+  x-axis ["Feb 10 10:00", "Feb 10 12:00", "Feb 10 14:00", "Feb 10 16:00", "Feb 10 18:00", "Feb 10 20:00", "Feb 10 22:00", "Feb 11 00:00", "Feb 11 02:00", "Feb 11 04:00", "Feb 11 06:00", "Feb 11 08:00", "Feb 11 10:00", "Feb 11 12:00", "Feb 11 14:00", "Feb 11 16:00", "Feb 11 18:00", "Feb 11 20:00", "Feb 11 22:00", "Feb 12 00:00", "Feb 12 02:00", "Feb 12 04:00", "Feb 12 06:00", "Feb 12 08:00", "Feb 12 10:00", "Feb 12 12:00", "Feb 12 14:00", "Feb 12 16:00", "Feb 12 18:00", "Feb 12 20:00", "Feb 12 22:00"]
+  y-axis "Closed" 0 --> 21
+  bar [1, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 11, 8, 11, 15, 13, 0, 18, 0, 0, 0, 0, 0, 1, 17, 11, 0, 0]
+```
+
+## Progress by Repo
 
 | Repo | Total | Done | Open | Progress |
 |------|-------|------|------|----------|
@@ -43,7 +66,29 @@ xychart-beta
 | testing | 14 | 14 | 0 | ▓▓▓▓▓▓▓▓▓▓ 100% |
 | **Total** | **290** | **198** | **92** | **68%** |
 
-### Summary
+### Issue States
+
+```mermaid
+pie
+  title "Issue State Breakdown"
+  "Completed" : 198
+  "In Progress" : 15
+  "Backlog" : 77
+```
+
+### Open by Priority
+
+```mermaid
+pie
+  title "Open Issues by Priority"
+  "Urgent" : 3
+  "High" : 22
+  "Normal" : 16
+  "Low" : 45
+  "None" : 6
+```
+
+## Summary
 
 | Metric | Count |
 |--------|-------|
@@ -55,4 +100,4 @@ xychart-beta
 
 ---
 
-*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) — last run: 2026-02-13 05:58 UTC*
+*Updated automatically every 6 hours from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:01 UTC*
