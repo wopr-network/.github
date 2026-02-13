@@ -288,10 +288,66 @@ function buildSummaryStats(issues) {
   return { total, done, inProgress, backlog };
 }
 
-async function generateBurnupChart(slotLabels, scopeLine, doneLine) {
-  // Show every Nth label to avoid crowding
-  const step = Math.max(1, Math.ceil(slotLabels.length / 12));
-  const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
+async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
+  const creepLine = scopeLine.map((s, i) => s - doneLine[i]);
+
+  // 14-day projected trendline for creep
+  // Find slot closest to 14 days ago
+  const now = new Date();
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  let windowStart = 0;
+  for (let i = 0; i < slots.length; i++) {
+    if (new Date(slots[i]) >= fourteenDaysAgo) { windowStart = i; break; }
+  }
+
+  const lastIdx = creepLine.length - 1;
+  const creepNow = creepLine[lastIdx];
+  const creepThen = creepLine[windowStart];
+  const slotsInWindow = lastIdx - windowStart;
+
+  // Rate of change per slot
+  const ratePerSlot = slotsInWindow > 0 ? (creepNow - creepThen) / slotsInWindow : 0;
+
+  // Project forward: how many slots until creep hits 0?
+  let projSlots = 0;
+  if (ratePerSlot < 0 && creepNow > 0) {
+    projSlots = Math.ceil(-creepNow / ratePerSlot);
+    if (projSlots > 60) projSlots = 60; // cap
+  } else {
+    projSlots = 30; // just show trend direction for 30 slots
+  }
+
+  // Build projection data: null for historical, then declining from last creep value
+  const projData = new Array(creepLine.length).fill(null);
+  projData[lastIdx] = creepNow; // connect to last real point
+  for (let i = 1; i <= projSlots; i++) {
+    projData.push(Math.max(0, Math.round((creepNow + ratePerSlot * i) * 10) / 10));
+  }
+
+  // Extend labels for projection
+  const allLabels = [...slotLabels];
+  // Figure out hours per slot for label generation
+  const hoursPerSlot = slots.length >= 2
+    ? (new Date(slots[1]) - new Date(slots[0])) / (60 * 60 * 1000)
+    : 1;
+  const labelStep = Math.max(1, Math.ceil((slotLabels.length + projSlots) / 12));
+
+  for (let i = 1; i <= projSlots; i++) {
+    const future = new Date(now.getTime() + i * hoursPerSlot * 60 * 60 * 1000);
+    const idx = slotLabels.length + i - 1;
+    if (idx % labelStep === 0) {
+      allLabels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()} ${future.getHours().toString().padStart(2, "0")}:00`);
+    } else {
+      allLabels.push("");
+    }
+  }
+
+  // Pad scope/done/creep with nulls for the projection zone
+  const scopePadded = [...scopeLine, ...new Array(projSlots).fill(null)];
+  const donePadded = [...doneLine, ...new Array(projSlots).fill(null)];
+  const creepPadded = [...creepLine, ...new Array(projSlots).fill(null)];
+
+  const sparseLabels = allLabels.map((l, i) => (i % labelStep === 0 ? l : ""));
 
   const config = {
     type: "line",
@@ -300,7 +356,7 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine) {
       datasets: [
         {
           label: "Scope",
-          data: scopeLine,
+          data: scopePadded,
           borderColor: "#6366f1",
           backgroundColor: "rgba(99,102,241,0.1)",
           fill: true,
@@ -309,7 +365,7 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine) {
         },
         {
           label: "Completed",
-          data: doneLine,
+          data: donePadded,
           borderColor: "#10b981",
           backgroundColor: "rgba(16,185,129,0.15)",
           fill: true,
@@ -318,13 +374,23 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine) {
         },
         {
           label: "Creep",
-          data: scopeLine.map((s, i) => s - doneLine[i]),
+          data: creepPadded,
           borderColor: "#ef4444",
           backgroundColor: "transparent",
           fill: false,
           pointRadius: 0,
           borderWidth: 1.5,
           borderDash: [4, 3],
+        },
+        {
+          label: "Creep Trend (14d)",
+          data: projData,
+          borderColor: "rgba(239,68,68,0.5)",
+          backgroundColor: "transparent",
+          fill: false,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [2, 2],
         },
       ],
     },
@@ -335,6 +401,7 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine) {
         yAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Issues" } }],
       },
       legend: { position: "bottom" },
+      spanGaps: false,
     },
   };
 
@@ -1229,7 +1296,7 @@ async function main() {
   const stats = buildSummaryStats(issues);
 
   // Chart 1: Burn-Up
-  const burnup = await generateBurnupChart(slotLabels, scopeLine, doneLine);
+  const burnup = await generateBurnupChart(slotLabels, scopeLine, doneLine, slots);
 
   // Chart 2: Milestone Progress + Projection
   const milestoneData = buildMilestoneData(issues);
