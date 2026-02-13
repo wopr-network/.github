@@ -12,7 +12,7 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart?c=%7B%22type%22%3A%22horizontalBar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Code%20Quality%22%2C%22Continuous%20Delivery%22%2C%22Security%20%26%20Error%20Handling%22%2C%22Channel%20Expansion%22%2C%22Agent%20Tools%22%2C%223.%20Platform%20Core%22%2C%22WebMCP%20Integration%22%2C%224.%20Dynamic%20Plugin%20UI%22%2C%226.%20Monetization%22%2C%225.%20P2P%20Network%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Days%20to%20Completion%22%2C%22data%22%3A%5B1%2C1%2C1%2C7%2C11%2C70%2C84%2C84%2C84%2C84%5D%2C%22backgroundColor%22%3A%5B%22%2310b981%22%2C%22%2310b981%22%2C%22%2310b981%22%2C%22%23eab308%22%2C%22%23ef4444%22%2C%22%23ef4444%22%2C%22%239ca3af%22%2C%22%239ca3af%22%2C%22%239ca3af%22%2C%22%239ca3af%22%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Projected%20Completion%20(7-day%20rolling%20velocity)%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%2C%22scaleLabel%22%3A%7B%22display%22%3Atrue%2C%22labelString%22%3A%22Days%22%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22fontSize%22%3A11%7D%7D%5D%7D%2C%22legend%22%3A%7B%22display%22%3Afalse%7D%2C%22plugins%22%3A%7B%22datalabels%22%3A%7B%22display%22%3Atrue%2C%22anchor%22%3A%22end%22%2C%22align%22%3A%22right%22%2C%22font%22%3A%7B%22size%22%3A10%7D%7D%7D%7D%7D&w=800&h=400&bkg=%23ffffff)
+![Projection](https://quickchart.io/chart/render/zf-7cec7845-5dba-41c5-bef6-36520c150623)
 
 ## Velocity
 
@@ -62,4 +62,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:19 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-13 06:23 UTC*

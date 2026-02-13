@@ -145,6 +145,26 @@ function quickchartUrl(config, width = 700, height = 300) {
   return `https://quickchart.io/chart?c=${encoded}&w=${width}&h=${height}&bkg=%23ffffff`;
 }
 
+async function quickchartShortUrl(config, width = 700, height = 300) {
+  const res = await fetch("https://quickchart.io/chart/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chart: config,
+      width,
+      height,
+      backgroundColor: "#ffffff",
+      format: "png",
+    }),
+  });
+  if (!res.ok) {
+    console.error(`QuickChart POST error: ${res.status} ${await res.text()}`);
+    return null;
+  }
+  const data = await res.json();
+  return data.url;
+}
+
 function buildHourlySlots(earliest) {
   const now = new Date();
   const start = new Date(earliest);
@@ -363,83 +383,170 @@ function buildMilestoneData(issues) {
   return milestones;
 }
 
-function generateProjectionChart(milestones) {
+function buildDailySlots(earliest) {
   const now = new Date();
-  const entries = Object.entries(milestones)
-    .filter(([, s]) => s.total > 0 && s.total - s.done > 0) // only incomplete milestones
-    .map(([name, s]) => {
-      const remaining = s.total - s.done;
-      const velocity = s.recentDone / 7; // issues/day (7-day average)
+  const start = new Date(earliest);
+  start.setHours(0, 0, 0, 0);
 
-      let daysLeft;
-      let projectedDate;
-      let label;
+  const slots = [];
+  const current = new Date(start);
+  while (current <= now) {
+    slots.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return slots;
+}
 
-      if (velocity > 0) {
-        daysLeft = Math.ceil(remaining / velocity);
-        projectedDate = new Date(now.getTime() + daysLeft * 24 * 60 * 60 * 1000);
-        const month = projectedDate.toLocaleString("en", { month: "short" });
-        label = `${month} ${projectedDate.getDate()}`;
-      } else {
-        daysLeft = null;
-        projectedDate = null;
-        label = "No velocity";
+async function generateProjectionChart(milestones, issues) {
+  const now = new Date();
+
+  // Only chart incomplete milestones
+  const incomplete = Object.entries(milestones)
+    .filter(([, s]) => s.total > 0 && s.total - s.done > 0);
+
+  if (incomplete.length === 0) return "";
+
+  // Group issues by milestone
+  const issuesByMs = {};
+  for (const issue of issues) {
+    const ms = issue.projectMilestone;
+    if (!ms || ms.name.startsWith("[DELETED]")) continue;
+    if (!issuesByMs[ms.name]) issuesByMs[ms.name] = [];
+    issuesByMs[ms.name].push(issue);
+  }
+
+  // Find earliest issue across all incomplete milestones
+  let earliest = now;
+  for (const [name] of incomplete) {
+    for (const issue of issuesByMs[name] || []) {
+      const d = new Date(issue.createdAt);
+      if (d < earliest) earliest = d;
+    }
+  }
+
+  // Build daily historical slots
+  const historySlots = buildDailySlots(earliest);
+
+  // Compute historical remaining per day per milestone
+  const colors = ["#6366f1", "#10b981", "#f97316", "#ef4444", "#eab308", "#3b82f6", "#ec4899", "#14b8a6", "#8b5cf6", "#f43f5e"];
+  const datasets = [];
+  let maxProjectedDays = 0;
+
+  for (let mi = 0; mi < incomplete.length; mi++) {
+    const [name, stats] = incomplete[mi];
+    const msIssues = issuesByMs[name] || [];
+    const color = colors[mi % colors.length];
+
+    // Historical: remaining issues at end of each day
+    const histData = historySlots.map((day) => {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      let created = 0;
+      let done = 0;
+      for (const issue of msIssues) {
+        if (new Date(issue.createdAt) <= dayEnd) {
+          created++;
+          if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) done++;
+          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+            // No completedAt but done — count as done at current time only
+            if (dayEnd >= now) done++;
+          }
+        }
       }
-
-      return { name, remaining, velocity, daysLeft, projectedDate, label };
-    })
-    .sort((a, b) => {
-      // Sort: items with dates first (soonest first), then no-velocity items
-      if (a.daysLeft === null && b.daysLeft === null) return 0;
-      if (a.daysLeft === null) return 1;
-      if (b.daysLeft === null) return -1;
-      return a.daysLeft - b.daysLeft;
+      return created - done;
     });
 
-  if (entries.length === 0) return "";
+    // Velocity: 7-day average issues/day
+    const velocity = stats.recentDone / 7;
+    const remaining = stats.total - stats.done;
 
-  // Build a horizontal bar chart: days until completion
-  const maxDays = Math.max(...entries.filter((e) => e.daysLeft !== null).map((e) => e.daysLeft), 1);
+    // Project future: generate daily points declining to 0
+    let projDays = 0;
+    if (velocity > 0) {
+      projDays = Math.ceil(remaining / velocity);
+      if (projDays > 90) projDays = 90; // cap at 90 days
+    } else {
+      projDays = 30; // stalled: show flat for 30 days
+    }
+
+    if (projDays > maxProjectedDays) maxProjectedDays = projDays;
+
+    // Build projected data (starts with null for historical, then declining values)
+    const projData = [];
+    for (let d = 0; d < historySlots.length - 1; d++) projData.push(null);
+    // Last historical point = start of projection
+    projData.push(remaining);
+    for (let d = 1; d <= projDays; d++) {
+      const val = velocity > 0 ? Math.max(0, remaining - velocity * d) : remaining;
+      projData.push(Math.round(val * 10) / 10);
+    }
+
+    // Actual line (solid)
+    datasets.push({
+      label: name,
+      data: [...histData, ...Array(projDays).fill(null)],
+      borderColor: color,
+      backgroundColor: "transparent",
+      pointRadius: 0,
+      borderWidth: 2,
+      fill: false,
+    });
+
+    // Projected line (dashed, hidden from legend)
+    datasets.push({
+      label: "",
+      data: projData,
+      borderColor: color,
+      backgroundColor: "transparent",
+      pointRadius: 0,
+      borderWidth: 2,
+      borderDash: [6, 3],
+      fill: false,
+    });
+  }
+
+  // Build x-axis labels: historical days + projected future days
+  const allLabels = [];
+  const labelStep = Math.max(1, Math.ceil((historySlots.length + maxProjectedDays) / 16));
+
+  for (let i = 0; i < historySlots.length; i++) {
+    if (i % labelStep === 0) {
+      const d = historySlots[i];
+      allLabels.push(`${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`);
+    } else {
+      allLabels.push("");
+    }
+  }
+  for (let d = 1; d <= maxProjectedDays; d++) {
+    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+    const idx = historySlots.length + d - 1;
+    if (idx % labelStep === 0) {
+      allLabels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()}`);
+    } else {
+      allLabels.push("");
+    }
+  }
 
   const config = {
-    type: "horizontalBar",
-    data: {
-      labels: entries.map((e) => e.name),
-      datasets: [
-        {
-          label: "Days to Completion",
-          data: entries.map((e) => e.daysLeft ?? maxDays * 1.2),
-          backgroundColor: entries.map((e) =>
-            e.daysLeft === null ? "#9ca3af" : e.daysLeft <= 3 ? "#10b981" : e.daysLeft <= 7 ? "#eab308" : "#ef4444",
-          ),
-        },
-      ],
-    },
+    type: "line",
+    data: { labels: allLabels, datasets },
     options: {
-      title: { display: true, text: "Projected Completion (7-day rolling velocity)", fontSize: 16 },
+      title: { display: true, text: "Burndown Projection (7-day velocity)", fontSize: 16 },
       scales: {
-        xAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Days" } }],
-        yAxes: [{ ticks: { fontSize: 11 } }],
+        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
+        yAxes: [{
+          ticks: { beginAtZero: true },
+          scaleLabel: { display: true, labelString: "Remaining Issues" },
+        }],
       },
-      legend: { display: false },
-      plugins: {
-        datalabels: {
-          display: true,
-          anchor: "end",
-          align: "right",
-          formatter: (val, ctx) => {
-            const e = entries[ctx.dataIndex];
-            if (e.daysLeft === null) return "stalled";
-            return `${e.label} (${e.remaining} left @ ${e.velocity.toFixed(1)}/day)`;
-          },
-          font: { size: 10 },
-        },
-      },
+      legend: { position: "bottom" },
+      spanGaps: false,
     },
   };
 
-  const height = Math.max(300, entries.length * 32 + 80);
-  return `![Projection](${quickchartUrl(config, 800, height)})`;
+  const url = await quickchartShortUrl(config, 900, 400);
+  if (!url) return "";
+  return `![Projection](${url})`;
 }
 
 function generateMilestoneChart(milestones) {
@@ -611,7 +718,7 @@ async function main() {
   // Chart 2: Milestone Progress + Projection
   const milestoneData = buildMilestoneData(issues);
   const milestoneChart = generateMilestoneChart(milestoneData);
-  const projectionChart = generateProjectionChart(milestoneData);
+  const projectionChart = await generateProjectionChart(milestoneData, issues);
 
   // Chart 3: Velocity (per hour)
   const velocityLine = buildVelocityData(issues, slots);
