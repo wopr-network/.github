@@ -805,37 +805,39 @@ async function generateScopeCreepCharts(milestones, issues) {
       if (d < earliest) earliest = d;
     }
   }
-  const dailySlots = buildDailySlots(earliest);
+  const hourlySlots = buildHourlySlots(earliest);
 
   // Generate a compact chart per milestone
   const charts = [];
-  const labelStep = Math.max(1, Math.ceil(dailySlots.length / 6));
+  const labelStep = Math.max(1, Math.ceil(hourlySlots.length / 6));
 
   for (const [name] of active) {
     const msIssues = issuesByMs[name] || [];
     if (msIssues.length === 0) continue;
 
     const now = new Date();
-    const labels = dailySlots.map((d, i) =>
-      i % labelStep === 0 ? `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}` : "",
-    );
+    const labels = hourlySlots.map((slot, i) => {
+      if (i % labelStep !== 0) return "";
+      const d = new Date(slot);
+      return `${d.toLocaleString("en", { month: "short" })} ${d.getDate()} ${String(d.getHours()).padStart(2, "0")}h`;
+    });
 
     // 3 lines per milestone
     const scopeData = []; // cumulative created (the creep line)
     const doneData = [];  // cumulative completed
     const backlogData = []; // remaining = created - done
 
-    for (const day of dailySlots) {
-      const dayEnd = new Date(day);
-      dayEnd.setHours(23, 59, 59, 999);
+    for (const slot of hourlySlots) {
+      const slotEnd = new Date(slot);
+      slotEnd.setMinutes(59, 59, 999);
       let created = 0;
       let done = 0;
       for (const issue of msIssues) {
-        if (new Date(issue.createdAt) <= dayEnd) {
+        if (new Date(issue.createdAt) <= slotEnd) {
           created++;
-          if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) done++;
+          if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) done++;
           else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
-            if (dayEnd >= now) done++;
+            if (slotEnd >= now) done++;
           }
         }
       }
