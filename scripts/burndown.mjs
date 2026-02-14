@@ -221,7 +221,7 @@ function isDone(issue, asOf) {
     return new Date(issue.completedAt) <= asOf;
   }
   // State is completed/cancelled but no completedAt — treat as done now
-  return issue.state.type === "completed" || issue.state.type === "cancelled";
+  return issue.state.type === "completed" || issue.state.type === "canceled";
 }
 
 function buildBurnupData(issues) {
@@ -266,7 +266,7 @@ function buildBurnupData(issues) {
 
     const total = repoIssues.length;
     const done = repoIssues.filter(
-      (i) => i.state.type === "completed" || i.state.type === "cancelled",
+      (i) => i.state.type === "completed" || i.state.type === "canceled",
     ).length;
     const open = total - done;
 
@@ -284,7 +284,7 @@ function buildSummaryStats(issues) {
 
   for (const issue of issues) {
     const type = issue.state.type;
-    if (type === "completed" || type === "cancelled") done++;
+    if (type === "completed" || type === "canceled") done++;
     else if (type === "started") inProgress++;
     else backlog++;
   }
@@ -476,7 +476,7 @@ function buildMilestoneData(issues) {
     if (!milestones[ms.name]) milestones[ms.name] = { total: 0, done: 0, recentDone: 0 };
     milestones[ms.name].total++;
     const type = issue.state.type;
-    if (type === "completed" || type === "cancelled") {
+    if (type === "completed" || type === "canceled") {
       milestones[ms.name].done++;
       // Track velocity: completed in last 7 days
       if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
@@ -552,7 +552,7 @@ async function generateProjectionChart(milestones, issues) {
         if (new Date(issue.createdAt) <= dayEnd) {
           created++;
           if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) done++;
-          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
             // No completedAt but done — count as done at current time only
             if (dayEnd >= now) done++;
           }
@@ -744,7 +744,7 @@ function generatePriorityChart(issues) {
   const counts = {};
   for (const issue of issues) {
     const type = issue.state.type;
-    if (type === "completed" || type === "cancelled") continue;
+    if (type === "completed" || type === "canceled") continue;
     const name = PRIORITY_NAMES[issue.priority] || "None";
     counts[name] = (counts[name] || 0) + 1;
   }
@@ -836,7 +836,7 @@ async function generateScopeCreepCharts(milestones, issues) {
         if (new Date(issue.createdAt) <= slotEnd) {
           created++;
           if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) done++;
-          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
             if (slotEnd >= now) done++;
           }
         }
@@ -917,7 +917,7 @@ async function generateConfidenceCone(issues) {
   let done = 0;
   for (const issue of issues) {
     const type = issue.state.type;
-    if (type === "completed" || type === "cancelled") done++;
+    if (type === "completed" || type === "canceled") done++;
   }
   const remaining = total - done;
   if (remaining === 0) return "";
@@ -980,7 +980,7 @@ async function generateConfidenceCone(issues) {
     for (const issue of issues) {
       if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) {
         doneCount++;
-      } else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+      } else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
         if (dayEnd >= now) doneCount++;
       }
     }
@@ -1165,7 +1165,7 @@ async function generatePriorityProjection(issues) {
     priorities[name].total++;
     priorities[name].issues.push(issue);
     const type = issue.state.type;
-    if (type === "completed" || type === "cancelled") {
+    if (type === "completed" || type === "canceled") {
       priorities[name].done++;
       if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
         priorities[name].recentDone++;
@@ -1221,7 +1221,7 @@ async function generatePriorityProjection(issues) {
         if (new Date(issue.createdAt) <= slotEnd) {
           created++;
           if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) doneCount++;
-          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
             if (slotEnd >= now) doneCount++;
           }
         }
