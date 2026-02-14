@@ -17,6 +17,10 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
+// Default to Pacific time so chart dates match the team's wall clock.
+// Override via TZ env var if needed.
+process.env.TZ = process.env.TZ || "America/Los_Angeles";
+
 const LINEAR_API = "https://api.linear.app/graphql";
 const TEAM_ID = "dca92d56-659a-4ee9-a8d1-69d1f0de19e0";
 
@@ -1054,7 +1058,7 @@ async function generateConfidenceCone(issues) {
             type: "line",
             mode: "vertical",
             scaleID: "x-axis-0",
-            value: labels[1] || labels[0],
+            value: labels[0],
             borderColor: "rgba(99,102,241,0.5)",
             borderWidth: 2,
             borderDash: [4, 4],
