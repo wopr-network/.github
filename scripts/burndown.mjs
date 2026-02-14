@@ -1096,50 +1096,65 @@ async function generatePriorityProjection(issues) {
     if (d < earliest) earliest = d;
   }
 
-  const historySlots = buildDailySlots(earliest);
+  const historySlots = buildHourlySlots(earliest);
   const datasets = [];
-  let maxProjectedDays = 0;
+
+  // Pre-compute max projection horizon across all priorities so we can
+  // use a single sampling step for projection labels.
+  const hoursPerWeek = 7 * 24;
+  let maxProjHours = 0;
+  for (const pName of incomplete) {
+    const stats = priorities[pName];
+    const remaining = stats.total - stats.done;
+    const vel = Math.max(1, stats.recentDone) / hoursPerWeek;
+    let h = Math.ceil(remaining / vel);
+    if (h > 90 * 24) h = 90 * 24;
+    if (h > maxProjHours) maxProjHours = h;
+  }
+  const projStep = Math.max(1, Math.ceil(maxProjHours / 48));
+  let maxProjSlots = Math.ceil(maxProjHours / projStep);
 
   for (const pName of incomplete) {
     const stats = priorities[pName];
     const color = colors[pName];
     const remaining = stats.total - stats.done;
-    const velocity = Math.max(1, stats.recentDone) / 7;
+    const velocity = Math.max(1, stats.recentDone) / hoursPerWeek; // issues per hour
 
-    // Historical: remaining per day for this priority
-    const histData = historySlots.map((day) => {
-      const dayEnd = new Date(day);
-      dayEnd.setHours(23, 59, 59, 999);
+    // Historical: remaining per hour for this priority
+    const histData = historySlots.map((slot) => {
+      const slotEnd = new Date(slot);
+      slotEnd.setMinutes(59, 59, 999);
       let created = 0;
       let doneCount = 0;
       for (const issue of stats.issues) {
-        if (new Date(issue.createdAt) <= dayEnd) {
+        if (new Date(issue.createdAt) <= slotEnd) {
           created++;
-          if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) doneCount++;
+          if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) doneCount++;
           else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
-            if (dayEnd >= now) doneCount++;
+            if (slotEnd >= now) doneCount++;
           }
         }
       }
       return created - doneCount;
     });
 
-    let projDays = Math.ceil(remaining / velocity);
-    if (projDays > 90) projDays = 90;
-    if (projDays > maxProjectedDays) maxProjectedDays = projDays;
+    let projHours = Math.ceil(remaining / velocity);
+    if (projHours > 90 * 24) projHours = 90 * 24;
+    const projSlotCount = Math.ceil(projHours / projStep);
 
-    // Projected data
+    // Projected data (sampled at projStep-hour intervals)
     const projData = [];
     for (let d = 0; d < historySlots.length - 1; d++) projData.push(null);
     projData.push(remaining);
-    for (let d = 1; d <= projDays; d++) {
-      projData.push(Math.max(0, Math.round((remaining - velocity * d) * 10) / 10));
+    for (let s = 1; s <= projSlotCount; s++) {
+      const h = s * projStep;
+      projData.push(Math.max(0, Math.round((remaining - velocity * h) * 10) / 10));
     }
 
     // Solid historical line
     datasets.push({
       label: pName,
-      data: [...histData, ...Array(projDays).fill(null)],
+      data: [...histData, ...Array(projSlotCount).fill(null)],
       borderColor: color,
       backgroundColor: "transparent",
       pointRadius: 0,
@@ -1160,23 +1175,23 @@ async function generatePriorityProjection(issues) {
     });
   }
 
-  // Labels
+  // Labels — hourly format for history, sampled projection
+  const fmtDate = (d) => `${d.toLocaleString("en", { month: "short" })} ${d.getDate()} ${String(d.getHours()).padStart(2, "0")}h`;
   const allLabels = [];
-  const labelStep = Math.max(1, Math.ceil((historySlots.length + maxProjectedDays) / 16));
+  const labelStep = Math.max(1, Math.ceil((historySlots.length + maxProjSlots) / 16));
 
   for (let i = 0; i < historySlots.length; i++) {
     if (i % labelStep === 0) {
-      const d = historySlots[i];
-      allLabels.push(`${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`);
+      allLabels.push(fmtDate(new Date(historySlots[i])));
     } else {
       allLabels.push("");
     }
   }
-  for (let d = 1; d <= maxProjectedDays; d++) {
-    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
-    const idx = historySlots.length + d - 1;
+  for (let s = 1; s <= maxProjSlots; s++) {
+    const future = new Date(now.getTime() + s * projStep * 3600000);
+    const idx = historySlots.length + s - 1;
     if (idx % labelStep === 0) {
-      allLabels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()}`);
+      allLabels.push(fmtDate(future));
     } else {
       allLabels.push("");
     }
