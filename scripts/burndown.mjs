@@ -967,26 +967,22 @@ async function generateConfidenceCone(issues) {
   const expected = Math.max(0.5, pct(rates, 50));      // P50 — median day
   const pessimistic = Math.max(0.5, pct(rates, 25));   // P25 — slow days
 
-  // --- Historical backdata: actual remaining per day ---
+  // --- Historical backdata: total (today) minus cumulative closures ---
+  // Anchors y-axis at today's total scope and burns down with closures.
+  // No upward bumps from scope creep — pure closure velocity.
   const histDays = [...dayCounts.keys()].sort();
   const histData = [];
   for (const dayKey of histDays) {
-    // Count issues that existed and were still open at end of this day
     const dayEnd = new Date(dayKey + "T23:59:59.999");
-    let created = 0;
     let doneCount = 0;
     for (const issue of issues) {
-      if (new Date(issue.createdAt) <= dayEnd) {
-        created++;
-        const type = issue.state.type;
-        if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) {
-          doneCount++;
-        } else if (!issue.completedAt && (type === "completed" || type === "cancelled")) {
-          if (dayEnd >= now) doneCount++;
-        }
+      if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) {
+        doneCount++;
+      } else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "cancelled")) {
+        if (dayEnd >= now) doneCount++;
       }
     }
-    histData.push(created - doneCount);
+    histData.push(total - doneCount);
   }
 
   // --- Forward projection ---
@@ -1057,7 +1053,7 @@ async function generateConfidenceCone(issues) {
       datasets: [
         // Actual burn history — solid bold line
         {
-          label: `Actual (${remaining} remaining)`,
+          label: `Actual — ${total} total, ${remaining} remaining`,
           data: actualData,
           borderColor: "#6366f1",
           backgroundColor: "transparent",
