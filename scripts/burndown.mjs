@@ -967,65 +967,127 @@ async function generateConfidenceCone(issues) {
   const expected = Math.max(0.5, pct(rates, 50));      // P50 — median day
   const pessimistic = Math.max(0.5, pct(rates, 25));   // P25 — slow days
 
-  // Project days to completion for each rate
+  // --- Historical backdata: actual remaining per day ---
+  const histDays = [...dayCounts.keys()].sort();
+  const histData = [];
+  for (const dayKey of histDays) {
+    // Count issues that existed and were still open at end of this day
+    const dayEnd = new Date(dayKey + "T23:59:59.999");
+    let created = 0;
+    let doneCount = 0;
+    for (const issue of issues) {
+      if (new Date(issue.createdAt) <= dayEnd) {
+        created++;
+        const type = issue.state.type;
+        if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) {
+          doneCount++;
+        } else if (!issue.completedAt && (type === "completed" || type === "cancelled")) {
+          if (dayEnd >= now) doneCount++;
+        }
+      }
+    }
+    histData.push(created - doneCount);
+  }
+
+  // --- Forward projection ---
   const optDays = Math.ceil(remaining / optimistic);
   const expDays = Math.ceil(remaining / expected);
   const pesDays = Math.ceil(remaining / pessimistic);
-  const maxDays = Math.min(pesDays, 120); // cap at 120 days
+  const maxProjDays = Math.min(pesDays, 120);
 
-  // Build the datasets: remaining issues declining over future days
-  const labels = [];
-  const optData = [];
-  const expData = [];
-  const pesData = [];
-
-  const labelStep = Math.max(1, Math.ceil(maxDays / 16));
+  // --- Build combined label array: history + projection ---
   const fmtDate = (d) => `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`;
+  const totalPoints = histDays.length + maxProjDays;
+  const labelStep = Math.max(1, Math.ceil(totalPoints / 16));
+  const allLabels = [];
+  let todayIdx = histDays.length - 1; // last history point = today
 
-  for (let d = 0; d <= maxDays; d++) {
-    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
-    if (d % labelStep === 0) {
-      labels.push(fmtDate(future));
+  // History labels
+  for (let i = 0; i < histDays.length; i++) {
+    if (i % labelStep === 0) {
+      allLabels.push(fmtDate(new Date(histDays[i] + "T12:00:00")));
     } else {
-      labels.push("");
+      allLabels.push("");
     }
-    optData.push(Math.max(0, remaining - optimistic * d));
-    expData.push(Math.max(0, remaining - expected * d));
-    pesData.push(Math.max(0, remaining - pessimistic * d));
   }
+  // Projection labels
+  for (let d = 1; d <= maxProjDays; d++) {
+    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+    const idx = histDays.length + d - 1;
+    if (idx % labelStep === 0) {
+      allLabels.push(fmtDate(future));
+    } else {
+      allLabels.push("");
+    }
+  }
+
+  // --- Build datasets ---
+  // 1. Actual history (solid line, full span of history, nulls for projection)
+  const actualData = [...histData, ...Array(maxProjDays).fill(null)];
+
+  // 2-4. Projection lines (nulls for history except connection point, then projection)
+  const buildProj = (vel, days) => {
+    const d = [];
+    for (let i = 0; i < histDays.length - 1; i++) d.push(null);
+    d.push(remaining); // connect to last history point
+    for (let i = 1; i <= maxProjDays; i++) {
+      d.push(Math.max(0, remaining - vel * i));
+    }
+    return d;
+  };
+
+  const optData = buildProj(optimistic, maxProjDays);
+  const expData = buildProj(expected, maxProjDays);
+  const pesData = buildProj(pessimistic, maxProjDays);
 
   // Completion date labels
   const optDate = fmtDate(new Date(now.getTime() + optDays * 24 * 60 * 60 * 1000));
   const expDate = fmtDate(new Date(now.getTime() + expDays * 24 * 60 * 60 * 1000));
   const pesDate = fmtDate(new Date(now.getTime() + pesDays * 24 * 60 * 60 * 1000));
 
+  // Today's label for annotation (use the actual label text at todayIdx)
+  const todayLabel = allLabels[todayIdx] || fmtDate(now);
+  // Ensure today's label slot is filled (not blank) so annotation can find it
+  if (!allLabels[todayIdx]) allLabels[todayIdx] = fmtDate(now);
+
   const config = {
     type: "line",
     data: {
-      labels,
+      labels: allLabels,
       datasets: [
-        // Outer cone: pessimistic (top boundary), fills down to optimistic (dataset index 2)
+        // Actual burn history — solid bold line
         {
-          label: `Pessimistic — ${pesDate} (P25: ${Math.round(pessimistic * 10) / 10}/day)`,
-          data: pesData,
-          borderColor: "#ef4444",
-          backgroundColor: "rgba(239,68,68,0.12)",
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          fill: 2, // fill down to optimistic (index 2)
-        },
-        // Expected line — bold, center of cone
-        {
-          label: `Expected — ${expDate} (P50: ${Math.round(expected * 10) / 10}/day)`,
-          data: expData,
+          label: `Actual (${remaining} remaining)`,
+          data: actualData,
           borderColor: "#6366f1",
           backgroundColor: "transparent",
           pointRadius: 0,
           borderWidth: 3,
           fill: false,
         },
-        // Optimistic (bottom boundary)
+        // Pessimistic projection (top boundary), fills down to optimistic (dataset index 3)
+        {
+          label: `Pessimistic — ${pesDate} (P25: ${Math.round(pessimistic * 10) / 10}/day)`,
+          data: pesData,
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239,68,68,0.10)",
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          fill: 3, // fill down to optimistic (dataset index 3)
+        },
+        // Expected projection — center of cone
+        {
+          label: `Expected — ${expDate} (P50: ${Math.round(expected * 10) / 10}/day)`,
+          data: expData,
+          borderColor: "#a855f7",
+          backgroundColor: "transparent",
+          pointRadius: 0,
+          borderWidth: 2,
+          borderDash: [8, 4],
+          fill: false,
+        },
+        // Optimistic projection (bottom boundary)
         {
           label: `Optimistic — ${optDate} (P75: ${Math.round(optimistic * 10) / 10}/day)`,
           data: optData,
@@ -1058,7 +1120,7 @@ async function generateConfidenceCone(issues) {
             type: "line",
             mode: "vertical",
             scaleID: "x-axis-0",
-            value: labels[0],
+            value: todayLabel,
             borderColor: "rgba(99,102,241,0.5)",
             borderWidth: 2,
             borderDash: [4, 4],
@@ -1083,6 +1145,7 @@ async function generateConfidenceCone(issues) {
           },
         ],
       },
+      spanGaps: false,
     },
   };
 
