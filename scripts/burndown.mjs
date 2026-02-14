@@ -916,26 +916,52 @@ async function generateConfidenceCone(issues) {
   const remaining = total - done;
   if (remaining === 0) return "";
 
-  // Compute closure counts for rolling windows
+  // Collect completion timestamps
   const closureDates = issues
     .filter((i) => i.completedAt)
     .map((i) => new Date(i.completedAt));
 
   if (closureDates.length < 2) return "";
 
-  const countInWindow = (days) => {
-    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    let count = 0;
-    for (const dt of closureDates) {
-      if (dt >= cutoff) count++;
-    }
-    return Math.max(1, count) / days; // issues/day, floor of 1 total
+  // Build per-day closure rate distribution.
+  // Window: from first closure to today (don't penalize pre-work setup days).
+  // Cap lookback at 30 days so ancient history doesn't dilute recent velocity.
+  const earliestClosure = closureDates.reduce((a, b) => (a < b ? a : b));
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const windowStart = earliestClosure > thirtyDaysAgo ? earliestClosure : thirtyDaysAgo;
+
+  // Count closures per calendar day
+  const dayCounts = new Map();
+  const startDay = new Date(windowStart);
+  startDay.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const cursor = new Date(startDay);
+  while (cursor <= today) {
+    dayCounts.set(cursor.toISOString().slice(0, 10), 0);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  for (const dt of closureDates) {
+    if (dt < windowStart) continue;
+    const key = dt.toISOString().slice(0, 10);
+    if (dayCounts.has(key)) dayCounts.set(key, dayCounts.get(key) + 1);
+  }
+
+  const rates = [...dayCounts.values()].sort((a, b) => a - b);
+  if (rates.length < 2) return "";
+
+  // Percentile-based velocity: reflects actual daily variance, not window dilution
+  const pct = (arr, p) => {
+    const i = (p / 100) * (arr.length - 1);
+    const lo = Math.floor(i);
+    const hi = Math.ceil(i);
+    return lo === hi ? arr[lo] : arr[lo] + (arr[hi] - arr[lo]) * (i - lo);
   };
 
-  // Rolling window averages: recent bursts show up in short windows
-  const optimistic = countInWindow(3);   // last 3 days
-  const expected = countInWindow(7);     // last 7 days
-  const pessimistic = countInWindow(14); // last 14 days
+  const optimistic = Math.max(0.5, pct(rates, 75));   // P75 — good days
+  const expected = Math.max(0.5, pct(rates, 50));      // P50 — median day
+  const pessimistic = Math.max(0.5, pct(rates, 25));   // P25 — slow days
 
   // Project days to completion for each rate
   const optDays = Math.ceil(remaining / optimistic);
@@ -976,7 +1002,7 @@ async function generateConfidenceCone(issues) {
       datasets: [
         // Outer cone: pessimistic (top boundary), fills down to optimistic (dataset index 2)
         {
-          label: `Pessimistic — done ${pesDate} (${Math.round(pessimistic * 10) / 10}/day)`,
+          label: `Pessimistic — ${pesDate} (P25: ${Math.round(pessimistic * 10) / 10}/day)`,
           data: pesData,
           borderColor: "#ef4444",
           backgroundColor: "rgba(239,68,68,0.12)",
@@ -987,7 +1013,7 @@ async function generateConfidenceCone(issues) {
         },
         // Expected line — bold, center of cone
         {
-          label: `Expected — done ${expDate} (${Math.round(expected * 10) / 10}/day)`,
+          label: `Expected — ${expDate} (P50: ${Math.round(expected * 10) / 10}/day)`,
           data: expData,
           borderColor: "#6366f1",
           backgroundColor: "transparent",
@@ -997,7 +1023,7 @@ async function generateConfidenceCone(issues) {
         },
         // Optimistic (bottom boundary)
         {
-          label: `Optimistic — done ${optDate} (${Math.round(optimistic * 10) / 10}/day)`,
+          label: `Optimistic — ${optDate} (P75: ${Math.round(optimistic * 10) / 10}/day)`,
           data: optData,
           borderColor: "#10b981",
           backgroundColor: "transparent",
@@ -1009,7 +1035,7 @@ async function generateConfidenceCone(issues) {
       ],
     },
     options: {
-      title: { display: true, text: "Confidence Cone — When Are We Done?", fontSize: 16 },
+      title: { display: true, text: `Confidence Cone — When Are We Done? (${rates.length}-day sample)`, fontSize: 16 },
       scales: {
         xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
         yAxes: [{
