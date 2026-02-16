@@ -4,7 +4,7 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-00a7f9e6-08c4-42d8-956c-4eb624894acc)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-dd66ab2a-004b-4645-987a-16694d8c9f19)
 
 ## Milestones
 
@@ -12,25 +12,25 @@
 
 ## Projected Completion
 
-![Projection](https://quickchart.io/chart/render/zf-ead2a472-a8d8-4139-812f-71302833a0e2)
+![Projection](https://quickchart.io/chart/render/zf-84d27de6-3872-44ce-acee-ff63d67d2199)
 
 ## Confidence Cone
 
-![Confidence Cone](https://quickchart.io/chart/render/zf-558435b4-0562-441c-82a9-12745841d55a)
+![Confidence Cone](https://quickchart.io/chart/render/zf-891dc006-09c0-44f8-8d78-cae1e9e4c0f9)
 
 ## Scope Creep
 
-<table><tr><td><img src="https://quickchart.io/chart/render/zf-cf1e7fd6-11e6-47e9-a1cf-3dfa42b44df9" alt="Socket Revenue" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-3e05e886-1459-4e5f-9d86-a7b63ad71d19" alt="Channel Expansion" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-7dc28485-a08e-448d-af30-6ee05a2bb298" alt="Admin Platform" width="360"></td></tr>
-<tr><td><img src="https://quickchart.io/chart/render/zf-f451f6db-2706-4e46-870b-a57325b52612" alt="Candy Store UX" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-7dc14694-75f2-4a94-b6f9-30c9db97f828" alt="Instance Hardening" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-23b1c7c8-785d-4528-974e-ccd942871588" alt="WebMCP Integration" width="360"></td></tr>
-<tr><td><img src="https://quickchart.io/chart/render/zf-8cd45a8d-ce15-4c1e-9b31-05c030f2e78d" alt="Code Quality" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-45d22cfa-3457-4814-8ebb-382ae033a971" alt="Onboarding & Payments" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-a2c33ba1-ff01-45f4-8aaf-e6d8a16aa6b6" alt="Feature Completion" width="360"></td></tr>
-<tr><td><img src="https://quickchart.io/chart/render/zf-6c3f6eb3-c15d-4341-a1a5-c0061d5fdc4c" alt="Agent Tools" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-953470d5-dc58-494b-926d-5895009d9b98" alt="Platform Security Hardening" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-2f490b1c-afe1-43d2-9ee9-8364e3faab6d" alt="Test Coverage" width="360"></td></tr>
-<tr><td><img src="https://quickchart.io/chart/render/zf-5715b751-63db-4fd5-9175-6165ab1b8f6f" alt="Security & Error Handling" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-9b8d6851-2dfa-403b-88a0-75484a41cd0f" alt="Platform Core" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-e017e7b4-494a-4689-991e-b30929e5a811" alt="Dynamic Plugin UI" width="360"></td></tr>
-<tr><td><img src="https://quickchart.io/chart/render/zf-48061ecf-a0a6-4e26-8e44-26f580d15acb" alt="Monetization" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-f3d1546a-da29-4a9b-a18d-336d357d52df" alt="Continuous Delivery" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-7dd60245-1c34-4bdf-a15f-53020711a85e" alt="Standalone WebUI" width="360"></td></tr>
-<tr><td><img src="https://quickchart.io/chart/render/zf-55e41689-9480-4136-b8e8-bf4fe137b848" alt="P2P Network" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-9ebe840e-ea5d-40b3-a39f-ee1ef6350129" alt="Plugin Types & Manifest" width="360"></td><td></td></tr></table>
+<table><tr><td><img src="https://quickchart.io/chart/render/zf-bea6f2c0-ac64-4399-8512-c546c743fd58" alt="Socket Revenue" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-1fdf86be-0765-402f-a434-263a3f211c28" alt="Channel Expansion" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-cf1781f3-ea82-4990-aff2-18fcaec18976" alt="Admin Platform" width="360"></td></tr>
+<tr><td><img src="https://quickchart.io/chart/render/zf-9064267a-29da-47fd-8cce-d35c4662ae6a" alt="Candy Store UX" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-a48bc84f-0f5d-438e-8d8a-63907117666d" alt="Instance Hardening" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-accbdf63-3fe3-4500-acd7-43d96e436d91" alt="WebMCP Integration" width="360"></td></tr>
+<tr><td><img src="https://quickchart.io/chart/render/zf-0c2cca41-5a93-4107-89b1-3b49e040f377" alt="Code Quality" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-a787c0f9-41e8-469b-ae4d-5bedc18a4827" alt="Onboarding & Payments" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-719705c2-a451-4478-bac1-d44e3404e994" alt="Feature Completion" width="360"></td></tr>
+<tr><td><img src="https://quickchart.io/chart/render/zf-793ac1b6-4f0d-4da0-a662-0a9b58b9fd05" alt="Agent Tools" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-d134eae8-e350-457b-84af-22f0c1b9db23" alt="Platform Security Hardening" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-5087f3ef-fd5c-4a0d-8962-1dcdf96f48ad" alt="Test Coverage" width="360"></td></tr>
+<tr><td><img src="https://quickchart.io/chart/render/zf-ebca76fb-97d5-4afd-8efc-bda99b073d47" alt="Security & Error Handling" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-baa82906-0bf7-45e1-86bf-fe2abf30c043" alt="Platform Core" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-a26de5e3-f051-432d-bd5e-0e99a22dffb5" alt="Dynamic Plugin UI" width="360"></td></tr>
+<tr><td><img src="https://quickchart.io/chart/render/zf-965a0165-a509-4546-8a19-c02003ee446b" alt="Monetization" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-70e5df41-b7b4-495a-b2c8-50a47242859b" alt="Continuous Delivery" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-6f1c9e17-992c-4dad-8513-e610d8eda264" alt="Standalone WebUI" width="360"></td></tr>
+<tr><td><img src="https://quickchart.io/chart/render/zf-918832e8-0976-4c91-8553-bd0d760143a1" alt="P2P Network" width="360"></td><td><img src="https://quickchart.io/chart/render/zf-dc20b562-4f85-4c45-b4ca-72de28cc469b" alt="Plugin Types & Manifest" width="360"></td><td></td></tr></table>
 
 ## Priority Burndown
 
-![Priority Burndown](https://quickchart.io/chart/render/zf-ba3a9b2f-eb59-4a0e-898a-c7ec38bd05c9)
+![Priority Burndown](https://quickchart.io/chart/render/zf-0f5cc614-1f04-4930-b342-c1f9b2ace0ad)
 
 ## Velocity
 
@@ -91,4 +91,4 @@
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-16 16:49 UTC*
+*Updated automatically every hour from [Linear](https://linear.app/wopr) — last run: 2026-02-16 17:39 UTC*
