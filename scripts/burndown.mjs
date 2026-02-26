@@ -425,24 +425,37 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issue
           const crossingLabel = `${crossingDate.toLocaleString("en", { month: "short" })} ${crossingDate.getDate()}`;
           const markerData = new Array(lastIdx + projSlots + 1).fill(null);
           markerData[lastIdx + crossingSlot] = 0;
-          return [{
-            label: `Creep → 0: ${crossingLabel}`,
-            data: markerData,
-            borderColor: "#ef4444",
-            backgroundColor: "#ef4444",
-            fill: false,
-            pointRadius: markerData.map(v => v !== null ? 7 : 0),
-            pointStyle: "star",
-            showLine: false,
-            datalabels: {
-              display: true,
-              align: "top",
-              anchor: "end",
-              color: "#ef4444",
-              font: { size: 11, weight: "bold" },
-              formatter: (value) => value !== null ? crossingLabel : null,
+          const labelData = new Array(lastIdx + projSlots + 1).fill(null);
+          labelData[lastIdx + crossingSlot] = crossingLabel;
+          return [
+            {
+              label: `Creep → 0: ${crossingLabel}`,
+              data: markerData,
+              borderColor: "#ef4444",
+              backgroundColor: "#ef4444",
+              fill: false,
+              pointRadius: markerData.map(v => v !== null ? 7 : 0),
+              pointStyle: "star",
+              showLine: false,
+              datalabels: { display: false },
             },
-          }];
+            {
+              label: "",
+              data: labelData,
+              borderColor: "transparent",
+              backgroundColor: "transparent",
+              fill: false,
+              pointRadius: 0,
+              showLine: false,
+              datalabels: {
+                display: true,
+                align: "top",
+                anchor: "end",
+                color: "#ef4444",
+                font: { size: 11, weight: "bold" },
+              },
+            },
+          ];
         })() : []),
       ],
     },
