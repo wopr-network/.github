@@ -295,12 +295,12 @@ function buildSummaryStats(issues) {
 async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
   const creepLine = scopeLine.map((s, i) => s - doneLine[i]);
 
-  // 14-day projected trendlines for all three lines
+  // 5-day projected trendlines for all three lines
   const now = new Date();
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
   let windowStart = 0;
   for (let i = 0; i < slots.length; i++) {
-    if (new Date(slots[i]) >= fourteenDaysAgo) { windowStart = i; break; }
+    if (new Date(slots[i]) >= fiveDaysAgo) { windowStart = i; break; }
   }
 
   const lastIdx = creepLine.length - 1;
@@ -931,10 +931,10 @@ async function generateConfidenceCone(issues) {
 
   // Build per-day closure rate distribution.
   // Window: from first closure to today (don't penalize pre-work setup days).
-  // Cap lookback at 30 days so ancient history doesn't dilute recent velocity.
+  // Cap lookback at 5 days so ancient history doesn't dilute recent velocity.
   const earliestClosure = closureDates.reduce((a, b) => (a < b ? a : b));
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const windowStart = earliestClosure > thirtyDaysAgo ? earliestClosure : thirtyDaysAgo;
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+  const windowStart = earliestClosure > fiveDaysAgo ? earliestClosure : fiveDaysAgo;
 
   // Count closures per calendar day
   const dayCounts = new Map();
@@ -1024,7 +1024,7 @@ async function generateConfidenceCone(issues) {
   const actualData = [...histData, ...Array(maxProjDays).fill(null)];
 
   // 2-4. Projection lines (nulls for history except connection point, then projection)
-  const buildProj = (vel, days) => {
+  const buildProj = (vel) => {
     const d = [];
     for (let i = 0; i < histDays.length - 1; i++) d.push(null);
     d.push(remaining); // connect to last history point
@@ -1034,9 +1034,9 @@ async function generateConfidenceCone(issues) {
     return d;
   };
 
-  const optData = buildProj(optimistic, maxProjDays);
-  const expData = buildProj(expected, maxProjDays);
-  const pesData = buildProj(pessimistic, maxProjDays);
+  const optData = buildProj(optimistic);
+  const expData = buildProj(expected);
+  const pesData = buildProj(pessimistic);
 
   // Completion date labels
   const optDate = fmtDate(new Date(now.getTime() + optDays * 24 * 60 * 60 * 1000));
