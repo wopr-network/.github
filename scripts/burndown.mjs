@@ -315,9 +315,11 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issue
 
   // Project forward 30 slots (or until creep hits 0)
   let projSlots = 30;
+  let crossingSlot = null; // slot index (relative to lastIdx) where creep hits 0
   if (creepRate < 0 && creepLine[lastIdx] > 0) {
     const toZero = Math.ceil(-creepLine[lastIdx] / creepRate);
     projSlots = Math.min(Math.max(toZero, 30), 60);
+    crossingSlot = toZero; // may be beyond projSlots cap, that's ok
   }
 
   // Build projection arrays
@@ -409,7 +411,7 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issue
           borderDash: [2, 2],
         },
         {
-          label: "Trend (14d)",
+          label: "Trend (5d)",
           data: creepProj,
           borderColor: "rgba(239,68,68,0.5)",
           backgroundColor: "transparent",
@@ -418,6 +420,22 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issue
           borderWidth: 1.5,
           borderDash: [2, 2],
         },
+        ...(crossingSlot !== null && crossingSlot <= projSlots ? (() => {
+          const crossingDate = new Date(now.getTime() + crossingSlot * hoursPerSlot * 60 * 60 * 1000);
+          const crossingLabel = `${crossingDate.toLocaleString("en", { month: "short" })} ${crossingDate.getDate()}`;
+          const markerData = new Array(lastIdx + projSlots + 1).fill(null);
+          markerData[lastIdx + crossingSlot] = 0;
+          return [{
+            label: `Creep → 0: ${crossingLabel}`,
+            data: markerData,
+            borderColor: "#ef4444",
+            backgroundColor: "#ef4444",
+            fill: false,
+            pointRadius: markerData.map(v => v !== null ? 7 : 0),
+            pointStyle: "star",
+            showLine: false,
+          }];
+        })() : []),
       ],
     },
     options: {
