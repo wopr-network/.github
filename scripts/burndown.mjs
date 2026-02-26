@@ -292,24 +292,26 @@ function buildSummaryStats(issues) {
   return { total, done, inProgress, backlog };
 }
 
-async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
+async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issues) {
   const creepLine = scopeLine.map((s, i) => s - doneLine[i]);
 
-  // 5-day projected trendlines for all three lines
+  // Compute rates directly from raw issue timestamps over the last 5 days,
+  // so sampled slot resolution doesn't flatten recent trends.
   const now = new Date();
   const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-  let windowStart = 0;
-  for (let i = 0; i < slots.length; i++) {
-    if (new Date(slots[i]) >= fiveDaysAgo) { windowStart = i; break; }
-  }
+  const windowHours = 5 * 24;
 
+  const createdInWindow = issues.filter(i => new Date(i.createdAt) >= fiveDaysAgo).length;
+  const closedInWindow = issues.filter(i => i.completedAt && new Date(i.completedAt) >= fiveDaysAgo).length;
+
+  // Rates per display slot (each slot = hoursPerSlot hours)
   const lastIdx = creepLine.length - 1;
-  const slotsInWindow = lastIdx - windowStart;
-
-  // Rate of change per slot for each line
-  const scopeRate = slotsInWindow > 0 ? (scopeLine[lastIdx] - scopeLine[windowStart]) / slotsInWindow : 0;
-  const doneRate = slotsInWindow > 0 ? (doneLine[lastIdx] - doneLine[windowStart]) / slotsInWindow : 0;
-  const creepRate = slotsInWindow > 0 ? (creepLine[lastIdx] - creepLine[windowStart]) / slotsInWindow : 0;
+  const hoursPerSlot = slots.length >= 2
+    ? (new Date(slots[1]) - new Date(slots[0])) / (60 * 60 * 1000)
+    : 24;
+  const scopeRate = (createdInWindow / windowHours) * hoursPerSlot;
+  const doneRate = (closedInWindow / windowHours) * hoursPerSlot;
+  const creepRate = scopeRate - doneRate;
 
   // Project forward 30 slots (or until creep hits 0)
   let projSlots = 30;
@@ -334,9 +336,6 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots) {
 
   // Extend labels for projection
   const allLabels = [...slotLabels];
-  const hoursPerSlot = slots.length >= 2
-    ? (new Date(slots[1]) - new Date(slots[0])) / (60 * 60 * 1000)
-    : 1;
   const labelStep = Math.max(1, Math.ceil((slotLabels.length + projSlots) / 12));
 
   for (let i = 1; i <= projSlots; i++) {
@@ -1425,7 +1424,7 @@ async function main() {
   const stats = buildSummaryStats(issues);
 
   // Chart 1: Burn-Up
-  const burnup = await generateBurnupChart(slotLabels, scopeLine, doneLine, slots);
+  const burnup = await generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issues);
 
   // Chart 2: Milestone Progress + Projection
   const milestoneData = buildMilestoneData(issues);
