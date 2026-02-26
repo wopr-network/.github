@@ -434,6 +434,14 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issue
             pointRadius: markerData.map(v => v !== null ? 7 : 0),
             pointStyle: "star",
             showLine: false,
+            datalabels: {
+              display: true,
+              align: "top",
+              anchor: "end",
+              color: "#ef4444",
+              font: { size: 11, weight: "bold" },
+              formatter: (value) => value !== null ? crossingLabel : null,
+            },
           }];
         })() : []),
       ],
@@ -446,6 +454,9 @@ async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issue
       },
       legend: { position: "bottom" },
       spanGaps: false,
+      plugins: {
+        datalabels: { display: false },
+      },
     },
   };
 
