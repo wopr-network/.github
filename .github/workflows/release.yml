@@ -36,7 +36,7 @@ jobs:
         run: pnpm run build
 
       - name: Install Semantic Release
-        run: npm install --no-save semantic-release @wopr-network/semantic-release-config
+        run: npm install --no-save --legacy-peer-deps semantic-release @wopr-network/semantic-release-config
 
       - name: Semantic Release
         run: npx semantic-release
@@ -44,3 +44,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
