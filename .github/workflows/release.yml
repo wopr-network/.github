@@ -36,12 +36,14 @@ jobs:
         run: pnpm run build
 
       - name: Install Semantic Release
-        run: npm install --no-save --legacy-peer-deps semantic-release @wopr-network/semantic-release-config
+        run: |
+          mkdir -p /tmp/semantic-release-tools
+          cd /tmp/semantic-release-tools
+          npm install --no-save semantic-release @wopr-network/semantic-release-config
 
       - name: Semantic Release
-        run: npx semantic-release
+        run: npx --prefix /tmp/semantic-release-tools semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
