@@ -1,722 +1,419 @@
 #!/usr/bin/env node
 /**
- * Queries Linear for WOPR issues and generates QuickChart.io chart images
- * for the GitHub org profile README:
+ * Generates QuickChart.io chart images for the GitHub org profile README.
  *
- * 1. Burn-Up Chart — scope vs completed (hourly)
- * 2. Milestone Progress — horizontal bar chart
- * 3. Velocity — issues closed per hour
- * 4. Priority Distribution — doughnut chart of open issues
- * 5. Issue State Breakdown — doughnut chart
+ * Data sources:
+ *   - data/linear-history.json — historical data from Linear (before 2026-03-14)
+ *   - GitHub Projects API (gh CLI) — current data (2026-03-14 onward)
  *
- * Requires: LINEAR_API_KEY env var
+ * Charts:
+ *   1. Burn-Up Chart — scope vs completed over time
+ *   2. Milestone Progress — horizontal bar chart
+ *   3. Velocity — issues closed per week
+ *   4. Priority Distribution — doughnut chart
+ *   5. Issue State Breakdown — doughnut chart
+ *
  * Usage: node scripts/burndown.mjs
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
 
-// Default to Pacific time so chart dates match the team's wall clock.
-// Override via TZ env var if needed.
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "..");
+
 process.env.TZ = process.env.TZ || "America/Los_Angeles";
 
-const LINEAR_API = "https://api.linear.app/graphql";
-const TEAM_ID = "dca92d56-659a-4ee9-a8d1-69d1f0de19e0";
+const ORG = "wopr-network";
+const PROJECT_NUMBER = 1;
+const CUTOFF_DATE = "2026-03-14";
 
-function loadApiKey() {
-  if (process.env.LINEAR_API_KEY) return process.env.LINEAR_API_KEY;
-  const keyFile = join(homedir(), ".config", "wopr", "linear-api-key");
-  if (existsSync(keyFile)) return readFileSync(keyFile, "utf8").trim();
-  return null;
+// ── GitHub Projects API via gh CLI ──────────────────────────────────────────
+
+function gh(args) {
+  return execSync(`gh ${args}`, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 }).trim();
 }
 
-const API_KEY = loadApiKey();
-
-if (!API_KEY) {
-  console.error("LINEAR_API_KEY not set (env or ~/.config/wopr/linear-api-key)");
-  process.exit(1);
+function ghGraphQL(query) {
+  const escaped = query.replace(/"/g, '\\"').replace(/\n/g, " ");
+  const result = gh(`api graphql -f query="${escaped}"`);
+  return JSON.parse(result);
 }
 
-// Labels to skip (category labels, not repo labels)
-const SKIP_LABELS = new Set(["Bug", "Improvement", "Feature"]);
-
-const PRIORITY_NAMES = ["None", "Urgent", "High", "Normal", "Low"];
-
-function labelToDisplayName(labelName) {
-  // Strip common prefixes to get a clean display name
-  return labelName
-    .replace(/^plugin-/, "")
-    .replace(/^wopr-/, "");
-}
-
-let REPO_LABELS = {};
-let DISPLAY_NAMES = [];
-
-async function linearQuery(query, variables = {}) {
-  const res = await fetch(LINEAR_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: API_KEY,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!res.ok) throw new Error(`Linear API ${res.status}: ${await res.text()}`);
-  const json = await res.json();
-  if (json.errors) throw new Error(JSON.stringify(json.errors));
-  return json.data;
-}
-
-async function fetchLabels() {
-  const data = await linearQuery(
-    `query($teamId: String!) {
-      team(id: $teamId) {
-        labels { nodes { name } }
+function fetchGitHubIssues() {
+  // Get all items from the project with their status, priority, and repo
+  const query = `
+    query {
+      organization(login: "${ORG}") {
+        projectV2(number: ${PROJECT_NUMBER}) {
+          items(first: 100) {
+            nodes {
+              content {
+                ... on Issue {
+                  title
+                  state
+                  createdAt
+                  closedAt
+                  labels(first: 10) { nodes { name } }
+                  repository { name }
+                }
+              }
+              fieldValues(first: 10) {
+                nodes {
+                  ... on ProjectV2ItemFieldSingleSelectValue {
+                    name
+                    field { ... on ProjectV2SingleSelectField { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
-    }`,
-    { teamId: TEAM_ID },
-  );
+    }
+  `;
 
-  const wsData = await linearQuery(
-    `{ issueLabels(filter: { team: { null: true } }, first: 250) { nodes { name } } }`,
-  );
+  try {
+    const data = ghGraphQL(query);
+    const items = data.data?.organization?.projectV2?.items?.nodes || [];
+    return items
+      .filter((item) => item.content?.title)
+      .map((item) => {
+        const fields = {};
+        for (const fv of item.fieldValues?.nodes || []) {
+          if (fv.field?.name && fv.name) {
+            fields[fv.field.name] = fv.name;
+          }
+        }
+        return {
+          title: item.content.title,
+          state: item.content.state,
+          createdAt: item.content.createdAt,
+          closedAt: item.content.closedAt,
+          labels: (item.content.labels?.nodes || []).map((l) => l.name),
+          repo: item.content.repository?.name || "unknown",
+          status: fields.Status || null,
+          priority: fields.Priority || null,
+          size: fields.Size || null,
+        };
+      });
+  } catch {
+    console.log("  No GitHub Project items yet (or project is empty)");
+    return [];
+  }
+}
 
-  const allLabels = [
-    ...data.team.labels.nodes.map((l) => l.name),
-    ...wsData.issueLabels.nodes.map((l) => l.name),
+function fetchGitHubMilestones() {
+  // Get milestones from the project's status field as a proxy
+  // Real milestones come from repo milestones across the org
+  const repos = [
+    "wopr", "wopr-platform", "wopr-platform-ui", "silo", "norad",
+    "cheyenne-mountain", "platform-ui-core", "platform-core",
+    "paperclip", "paperclip-platform", "paperclip-platform-ui",
   ];
 
-  REPO_LABELS = {};
-  for (const name of allLabels) {
-    if (SKIP_LABELS.has(name)) continue;
-    REPO_LABELS[name] = labelToDisplayName(name);
-  }
-
-  DISPLAY_NAMES = [...new Set(Object.values(REPO_LABELS))];
-  console.log(`Loaded ${Object.keys(REPO_LABELS).length} labels \u2192 ${DISPLAY_NAMES.length} groups`);
-}
-
-async function fetchAllIssues() {
-  const issues = [];
-  let cursor = null;
-  let hasMore = true;
-
-  while (hasMore) {
-    const data = await linearQuery(
-      `query($teamId: ID!, $cursor: String) {
-        issues(
-          filter: { team: { id: { eq: $teamId } } }
-          first: 250
-          after: $cursor
-        ) {
-          nodes {
-            id
-            identifier
-            createdAt
-            completedAt
-            priority
-            state { type }
-            labels { nodes { name } }
-            projectMilestone { id name }
-          }
-          pageInfo { hasNextPage endCursor }
+  const milestones = [];
+  for (const repo of repos) {
+    try {
+      const result = gh(
+        `api repos/${ORG}/${repo}/milestones --jq '.[] | {title, state, open_issues, closed_issues, due_on}'`
+      );
+      if (result) {
+        for (const line of result.split("\n").filter(Boolean)) {
+          try {
+            const m = JSON.parse(line);
+            m.repo = repo;
+            milestones.push(m);
+          } catch { /* skip malformed */ }
         }
-      }`,
-      { teamId: TEAM_ID, cursor },
-    );
-
-    issues.push(...data.issues.nodes);
-    hasMore = data.issues.pageInfo.hasNextPage;
-    cursor = data.issues.pageInfo.endCursor;
+      }
+    } catch { /* repo may not have milestones */ }
   }
-
-  return issues;
+  return milestones;
 }
 
-function getHourLabel(isoStr) {
-  const d = new Date(isoStr);
-  const month = d.toLocaleString("en", { month: "short" });
-  const day = d.getDate();
-  const hour = d.getHours().toString().padStart(2, "0");
-  return `${month} ${day} ${hour}:00`;
-}
+// ── Load historical data ────────────────────────────────────────────────────
 
-function quickchartUrl(config, width = 700, height = 300) {
-  const json = JSON.stringify(config);
-  const encoded = encodeURIComponent(json);
-  return `https://quickchart.io/chart?c=${encoded}&w=${width}&h=${height}&bkg=%23ffffff`;
-}
-
-async function quickchartShortUrl(config, width = 700, height = 300) {
-  const res = await fetch("https://quickchart.io/chart/create", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chart: config,
-      width,
-      height,
-      backgroundColor: "#ffffff",
-      format: "png",
-    }),
-  });
-  if (!res.ok) {
-    console.error(`QuickChart POST error: ${res.status} ${await res.text()}`);
-    return null;
+function loadLinearHistory() {
+  const historyFile = join(ROOT, "data", "linear-history.json");
+  if (!existsSync(historyFile)) {
+    console.error("Missing data/linear-history.json — run linear-export.mjs first");
+    process.exit(1);
   }
-  const data = await res.json();
-  return data.url;
+  return JSON.parse(readFileSync(historyFile, "utf8"));
 }
 
-function buildHourlySlots(earliest) {
-  const now = new Date();
-  const start = new Date(earliest);
-  start.setMinutes(0, 0, 0);
+// ── Merge data sources ──────────────────────────────────────────────────────
 
-  const slots = [];
-  const current = new Date(start);
-  while (current <= now) {
-    slots.push(current.toISOString());
-    current.setHours(current.getHours() + 1);
-  }
+function buildBurnUp(history, ghIssues) {
+  // Start with Linear historical burn-up
+  const burnUp = [...history.burnUp];
+  const lastLinear = burnUp[burnUp.length - 1];
+  let cumScope = lastLinear.scope;
+  let cumDone = lastLinear.done;
 
-  // Sample to max ~48 slots for chart readability
-  if (slots.length > 48) {
-    const step = Math.ceil(slots.length / 48);
-    const sampled = [];
-    for (let i = 0; i < slots.length; i += step) {
-      sampled.push(slots[i]);
+  // Add GitHub issues created/closed after cutoff
+  const dailyCreated = {};
+  const dailyClosed = {};
+
+  for (const issue of ghIssues) {
+    const created = issue.createdAt?.slice(0, 10);
+    if (created && created > CUTOFF_DATE) {
+      dailyCreated[created] = (dailyCreated[created] || 0) + 1;
     }
-    if (sampled[sampled.length - 1] !== slots[slots.length - 1]) {
-      sampled.push(slots[slots.length - 1]);
-    }
-    return sampled;
-  }
-  return slots;
-}
-
-function categorizeIssues(issues) {
-  const grouped = {};
-  for (const name of DISPLAY_NAMES) grouped[name] = [];
-  grouped["other"] = [];
-
-  for (const issue of issues) {
-    const labels = issue.labels.nodes.map((l) => l.name);
-    let matched = false;
-    for (const [label, displayName] of Object.entries(REPO_LABELS)) {
-      if (labels.includes(label)) {
-        grouped[displayName].push(issue);
-        matched = true;
-        break;
+    if (issue.closedAt) {
+      const closed = issue.closedAt.slice(0, 10);
+      if (closed > CUTOFF_DATE) {
+        dailyClosed[closed] = (dailyClosed[closed] || 0) + 1;
       }
     }
-    if (!matched) grouped["other"].push(issue);
   }
 
-  return grouped;
+  const ghDates = [
+    ...new Set([...Object.keys(dailyCreated), ...Object.keys(dailyClosed)]),
+  ].sort();
+
+  for (const date of ghDates) {
+    cumScope += dailyCreated[date] || 0;
+    cumDone += dailyClosed[date] || 0;
+    burnUp.push({ date, scope: cumScope, done: cumDone });
+  }
+
+  return burnUp;
 }
 
-function isDone(issue, asOf) {
-  if (issue.completedAt) {
-    return new Date(issue.completedAt) <= asOf;
-  }
-  // State is completed/cancelled but no completedAt — treat as done now
-  return issue.state.type === "completed" || issue.state.type === "canceled";
-}
-
-function buildBurnupData(issues) {
-  // Find earliest createdAt
-  let earliest = new Date();
-  for (const issue of issues) {
-    const d = new Date(issue.createdAt);
-    if (d < earliest) earliest = d;
+function buildWeeklyVelocity(history, ghIssues) {
+  // Start with Linear weekly velocity
+  const weekMap = {};
+  for (const entry of history.weeklyVelocity) {
+    weekMap[entry.week] = entry.count;
   }
 
-  const slots = buildHourlySlots(earliest);
-  const slotLabels = slots.map((s) => getHourLabel(s));
-
-  // Overall burn-up: scope line + done line
-  const scopeLine = slots.map((slotIso) => {
-    const slotEnd = new Date(slotIso);
-    slotEnd.setHours(slotEnd.getHours() + 1);
-    let count = 0;
-    for (const issue of issues) {
-      if (new Date(issue.createdAt) <= slotEnd) count++;
+  // Add GitHub closed issues
+  for (const issue of ghIssues) {
+    if (issue.closedAt) {
+      const d = new Date(issue.closedAt);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const weekKey = weekStart.toISOString().slice(0, 10);
+      weekMap[weekKey] = (weekMap[weekKey] || 0) + 1;
     }
-    return count;
-  });
-
-  const doneLine = slots.map((slotIso) => {
-    const slotEnd = new Date(slotIso);
-    slotEnd.setHours(slotEnd.getHours() + 1);
-    let count = 0;
-    for (const issue of issues) {
-      if (new Date(issue.createdAt) > slotEnd) continue;
-      if (isDone(issue, slotEnd)) count++;
-    }
-    return count;
-  });
-
-  // Per-repo breakdown (done counts only, for the table)
-  const grouped = categorizeIssues(issues);
-  const repoStats = {};
-
-  for (const [displayName, repoIssues] of Object.entries(grouped)) {
-    if (repoIssues.length === 0) continue;
-
-    const total = repoIssues.length;
-    const done = repoIssues.filter(
-      (i) => i.state.type === "completed" || i.state.type === "canceled",
-    ).length;
-    const open = total - done;
-
-    repoStats[displayName] = { total, done, open };
   }
 
-  return { slotLabels, scopeLine, doneLine, repoStats, slots };
+  return Object.entries(weekMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, count]) => ({ week, count }));
 }
 
-function buildSummaryStats(issues) {
-  const total = issues.length;
-  let done = 0;
-  let inProgress = 0;
-  let backlog = 0;
+function buildPriorityDistribution(history, ghIssues) {
+  // Merge Linear historical + GitHub current
+  const dist = { ...history.priorityDistribution };
 
-  for (const issue of issues) {
-    const type = issue.state.type;
-    if (type === "completed" || type === "canceled") done++;
-    else if (type === "started") inProgress++;
-    else backlog++;
+  for (const issue of ghIssues) {
+    const p = issue.priority || "No priority";
+    dist[p] = (dist[p] || 0) + 1;
   }
 
-  return { total, done, inProgress, backlog };
+  return dist;
 }
 
-async function generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issues) {
-  const creepLine = scopeLine.map((s, i) => s - doneLine[i]);
-
-  // Compute rates directly from raw issue timestamps over the last 5 days,
-  // so sampled slot resolution doesn't flatten recent trends.
-  const now = new Date();
-  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-  const windowHours = 5 * 24;
-
-  const createdInWindow = issues.filter(i => new Date(i.createdAt) >= fiveDaysAgo).length;
-  const closedInWindow = issues.filter(i => i.completedAt && new Date(i.completedAt) >= fiveDaysAgo).length;
-
-  // Rates per display slot (each slot = hoursPerSlot hours)
-  const lastIdx = creepLine.length - 1;
-  const hoursPerSlot = slots.length >= 2
-    ? (new Date(slots[1]) - new Date(slots[0])) / (60 * 60 * 1000)
-    : 24;
-  const scopeRate = (createdInWindow / windowHours) * hoursPerSlot;
-  const doneRate = (closedInWindow / windowHours) * hoursPerSlot;
-  const creepRate = scopeRate - doneRate;
-
-  // Project forward 30 slots (or until creep hits 0)
-  let projSlots = 30;
-  let crossingSlot = null; // slot index (relative to lastIdx) where creep hits 0
-  let crossingLabel = null;
-  if (creepRate < 0 && creepLine[lastIdx] > 0) {
-    const toZero = Math.ceil(-creepLine[lastIdx] / creepRate);
-    projSlots = Math.min(Math.max(toZero, 30), 60);
-    crossingSlot = toZero; // may be beyond projSlots cap, that's ok
-    const crossingDate = new Date(now.getTime() + toZero * hoursPerSlot * 60 * 60 * 1000);
-    crossingLabel = `${crossingDate.toLocaleString("en", { month: "short" })} ${crossingDate.getDate()}`;
-  }
-
-  // Build projection arrays
-  const buildProj = (line, rate) => {
-    const proj = new Array(line.length).fill(null);
-    proj[lastIdx] = line[lastIdx]; // connect to last real point
-    for (let i = 1; i <= projSlots; i++) {
-      proj.push(Math.max(0, Math.round((line[lastIdx] + rate * i) * 10) / 10));
-    }
-    return proj;
+function buildStateBreakdown(history, ghIssues) {
+  // Linear final state
+  const states = {
+    Done: history.summary.completed,
+    Canceled: history.summary.canceled,
   };
 
-  const scopeProj = buildProj(scopeLine, scopeRate);
-  const doneProj = buildProj(doneLine, doneRate);
-  const creepProj = buildProj(creepLine, creepRate);
-
-  // Extend labels for projection
-  const allLabels = [...slotLabels];
-  const labelStep = Math.max(1, Math.ceil((slotLabels.length + projSlots) / 12));
-
-  for (let i = 1; i <= projSlots; i++) {
-    const future = new Date(now.getTime() + i * hoursPerSlot * 60 * 60 * 1000);
-    const idx = slotLabels.length + i - 1;
-    if (idx % labelStep === 0) {
-      allLabels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()} ${future.getHours().toString().padStart(2, "0")}:00`);
-    } else {
-      allLabels.push("");
-    }
+  // GitHub current state
+  for (const issue of ghIssues) {
+    const status = issue.status || (issue.state === "CLOSED" ? "Done" : "Todo");
+    states[status] = (states[status] || 0) + 1;
   }
 
-  // Pad historical lines with nulls for the projection zone
-  const scopePadded = [...scopeLine, ...new Array(projSlots).fill(null)];
-  const donePadded = [...doneLine, ...new Array(projSlots).fill(null)];
-  const creepPadded = [...creepLine, ...new Array(projSlots).fill(null)];
-
-  const sparseLabels = allLabels.map((l, i) => (i % labelStep === 0 ? l : ""));
-
-  const config = {
-    type: "line",
-    data: {
-      labels: sparseLabels,
-      datasets: [
-        {
-          label: "Scope",
-          data: scopePadded,
-          borderColor: "#6366f1",
-          backgroundColor: "rgba(99,102,241,0.1)",
-          fill: true,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-        {
-          label: "Completed",
-          data: donePadded,
-          borderColor: "#10b981",
-          backgroundColor: "rgba(16,185,129,0.15)",
-          fill: true,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-        {
-          label: "Creep",
-          data: creepPadded,
-          borderColor: "#ef4444",
-          backgroundColor: "transparent",
-          fill: false,
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [4, 3],
-        },
-        {
-          label: "",
-          data: scopeProj,
-          borderColor: "rgba(99,102,241,0.4)",
-          backgroundColor: "transparent",
-          fill: false,
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [2, 2],
-        },
-        {
-          label: "",
-          data: doneProj,
-          borderColor: "rgba(16,185,129,0.4)",
-          backgroundColor: "transparent",
-          fill: false,
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [2, 2],
-        },
-        {
-          label: "Trend (5d)",
-          data: creepProj,
-          borderColor: "rgba(239,68,68,0.5)",
-          backgroundColor: "transparent",
-          fill: false,
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [2, 2],
-        },
-        ...(crossingSlot !== null && crossingSlot <= projSlots ? (() => {
-          const markerData = new Array(lastIdx + projSlots + 1).fill(null);
-          markerData[lastIdx + crossingSlot] = 0;
-          return [{
-            label: `Creep → 0: ${crossingLabel}`,
-            data: markerData,
-            borderColor: "#ef4444",
-            backgroundColor: "#ef4444",
-            fill: false,
-            pointRadius: markerData.map(v => v !== null ? 7 : 0),
-            pointStyle: "star",
-            showLine: false,
-            datalabels: { display: false },
-          }];
-        })() : []),
-      ],
-    },
-    options: {
-      title: { display: true, text: "Burn-Up \u2014 Scope vs Completed", fontSize: 16 },
-      scales: {
-        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
-        yAxes: [{ ticks: { beginAtZero: true }, scaleLabel: { display: true, labelString: "Issues" } }],
-      },
-      legend: { position: "bottom" },
-      spanGaps: false,
-      plugins: {
-        datalabels: { display: false },
-      },
-      annotation: crossingSlot !== null && crossingSlot <= projSlots ? {
-        annotations: [{
-          type: "line",
-          mode: "vertical",
-          scaleID: "x-axis-0",
-          value: lastIdx + crossingSlot,
-          borderColor: "rgba(239,68,68,0.4)",
-          borderWidth: 1,
-          borderDash: [4, 3],
-          label: {
-            enabled: true,
-            content: crossingLabel,
-            position: "top",
-            backgroundColor: "rgba(239,68,68,0.8)",
-            fontColor: "#fff",
-            fontSize: 11,
-            xPadding: 6,
-            yPadding: 4,
-            cornerRadius: 3,
-          },
-        }],
-      } : {},
-    },
-  };
-
-  const url = await quickchartShortUrl(config, 800, 300);
-  if (!url) return "";
-  return `![Burn-Up Chart](${url})`;
+  return states;
 }
 
-function generateTable(repoStats) {
-  const sorted = Object.entries(repoStats).sort((a, b) => b[1].open - a[1].open);
-  const lines = [];
-  lines.push("| Repo | Total | Done | Open | Progress |");
-  lines.push("|------|-------|------|------|----------|");
+function buildMilestoneProgress(history, ghMilestones) {
+  const milestones = [];
 
-  let totalAll = 0;
-  let doneAll = 0;
-  let openAll = 0;
-
-  for (const [name, { total, done, open }] of sorted) {
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    const filled = Math.round(pct / 10);
-    const bar = "\u2593".repeat(filled) + "\u2591".repeat(10 - filled);
-    lines.push(`| ${name} | ${total} | ${done} | ${open} | ${bar} ${pct}% |`);
-    totalAll += total;
-    doneAll += done;
-    openAll += open;
+  // Linear historical milestones (all 100% complete at cutoff)
+  for (const m of history.milestones) {
+    milestones.push({
+      name: `${m.name} (Linear)`,
+      done: Math.round(m.progress * 100),
+      remaining: Math.round((1 - m.progress) * 100),
+    });
   }
 
-  const pctAll = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
-  lines.push(`| **Total** | **${totalAll}** | **${doneAll}** | **${openAll}** | **${pctAll}%** |`);
-  return lines.join("\n");
-}
-
-function buildMilestoneData(issues) {
-  const milestones = {};
-  const now = new Date();
-  const windowMs = 7 * 24 * 60 * 60 * 1000; // 7-day velocity window
-  const windowStart = new Date(now.getTime() - windowMs);
-
-  for (const issue of issues) {
-    const ms = issue.projectMilestone;
-    if (!ms) continue;
-    if (ms.name.startsWith("[DELETED]")) continue;
-
-    if (!milestones[ms.name]) milestones[ms.name] = { total: 0, done: 0, recentDone: 0 };
-    milestones[ms.name].total++;
-    const type = issue.state.type;
-    if (type === "completed" || type === "canceled") {
-      milestones[ms.name].done++;
-      // Track velocity: completed in last 7 days
-      if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
-        milestones[ms.name].recentDone++;
-      }
-    }
+  // GitHub repo milestones
+  for (const m of ghMilestones) {
+    const total = m.open_issues + m.closed_issues;
+    if (total === 0) continue;
+    milestones.push({
+      name: `${m.title} (${m.repo})`,
+      done: m.closed_issues,
+      remaining: m.open_issues,
+    });
   }
 
   return milestones;
 }
 
-function buildDailySlots(earliest) {
-  const now = new Date();
-  const start = new Date(earliest);
-  start.setHours(0, 0, 0, 0);
+// ── Chart URL generators ────────────────────────────────────────────────────
 
-  const slots = [];
-  const current = new Date(start);
-  while (current <= now) {
-    slots.push(new Date(current));
-    current.setDate(current.getDate() + 1);
-  }
-  return slots;
+function encodeChart(config, width = 700, height = 400) {
+  const json = JSON.stringify(config);
+  return `https://quickchart.io/chart?c=${encodeURIComponent(json)}&w=${width}&h=${height}&bkg=%23ffffff`;
 }
 
-async function generateProjectionChart(milestones, issues) {
-  const now = new Date();
+function burnUpChart(burnUp) {
+  // Sample to avoid URL length limits — take every Nth point
+  const maxPoints = 40;
+  const step = Math.max(1, Math.floor(burnUp.length / maxPoints));
+  const sampled = burnUp.filter((_, i) => i % step === 0 || i === burnUp.length - 1);
 
-  // Only chart incomplete milestones
-  const incomplete = Object.entries(milestones)
-    .filter(([, s]) => s.total > 0 && s.total - s.done > 0);
-
-  if (incomplete.length === 0) return "";
-
-  // Group issues by milestone
-  const issuesByMs = {};
-  for (const issue of issues) {
-    const ms = issue.projectMilestone;
-    if (!ms || ms.name.startsWith("[DELETED]")) continue;
-    if (!issuesByMs[ms.name]) issuesByMs[ms.name] = [];
-    issuesByMs[ms.name].push(issue);
-  }
-
-  // Find earliest issue across all incomplete milestones
-  let earliest = now;
-  for (const [name] of incomplete) {
-    for (const issue of issuesByMs[name] || []) {
-      const d = new Date(issue.createdAt);
-      if (d < earliest) earliest = d;
-    }
-  }
-
-  // Build daily historical slots
-  const historySlots = buildDailySlots(earliest);
-
-  // Compute historical remaining per day per milestone
-  const colors = ["#6366f1", "#10b981", "#f97316", "#ef4444", "#eab308", "#3b82f6", "#ec4899", "#14b8a6", "#8b5cf6", "#f43f5e"];
-  const datasets = [];
-  let maxProjectedDays = 0;
-
-  for (let mi = 0; mi < incomplete.length; mi++) {
-    const [name, stats] = incomplete[mi];
-    const msIssues = issuesByMs[name] || [];
-    const color = colors[mi % colors.length];
-
-    // Historical: remaining issues at end of each day
-    const histData = historySlots.map((day) => {
-      const dayEnd = new Date(day);
-      dayEnd.setHours(23, 59, 59, 999);
-      let created = 0;
-      let done = 0;
-      for (const issue of msIssues) {
-        if (new Date(issue.createdAt) <= dayEnd) {
-          created++;
-          if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) done++;
-          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
-            // No completedAt but done — count as done at current time only
-            if (dayEnd >= now) done++;
-          }
-        }
-      }
-      return created - done;
-    });
-
-    // Velocity: 7-day average issues/day
-    const velocity = Math.max(1, stats.recentDone) / 7;
-    const remaining = stats.total - stats.done;
-
-    // Project future: generate daily points declining to 0
-    let projDays = Math.ceil(remaining / velocity);
-    if (projDays > 90) projDays = 90; // cap at 90 days
-
-    if (projDays > maxProjectedDays) maxProjectedDays = projDays;
-
-    // Build projected data (starts with null for historical, then declining values)
-    const projData = [];
-    for (let d = 0; d < historySlots.length - 1; d++) projData.push(null);
-    // Last historical point = start of projection
-    projData.push(remaining);
-    for (let d = 1; d <= projDays; d++) {
-      const val = Math.max(0, remaining - velocity * d);
-      projData.push(Math.round(val * 10) / 10);
-    }
-
-    // Actual line (solid)
-    datasets.push({
-      label: name,
-      data: [...histData, ...Array(projDays).fill(null)],
-      borderColor: color,
-      backgroundColor: "transparent",
-      pointRadius: 0,
-      borderWidth: 2,
-      fill: false,
-    });
-
-    // Projected line (dashed, hidden from legend)
-    datasets.push({
-      label: "",
-      data: projData,
-      borderColor: color,
-      backgroundColor: "transparent",
-      pointRadius: 0,
-      borderWidth: 2,
-      borderDash: [6, 3],
-      fill: false,
-    });
-  }
-
-  // Build x-axis labels: historical days + projected future days
-  const allLabels = [];
-  const labelStep = Math.max(1, Math.ceil((historySlots.length + maxProjectedDays) / 16));
-
-  for (let i = 0; i < historySlots.length; i++) {
-    if (i % labelStep === 0) {
-      const d = historySlots[i];
-      allLabels.push(`${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`);
-    } else {
-      allLabels.push("");
-    }
-  }
-  for (let d = 1; d <= maxProjectedDays; d++) {
-    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
-    const idx = historySlots.length + d - 1;
-    if (idx % labelStep === 0) {
-      allLabels.push(`${future.toLocaleString("en", { month: "short" })} ${future.getDate()}`);
-    } else {
-      allLabels.push("");
-    }
-  }
-
-  const config = {
+  return encodeChart({
     type: "line",
-    data: { labels: allLabels, datasets },
+    data: {
+      labels: sampled.map((d) => d.date.slice(5)), // MM-DD
+      datasets: [
+        {
+          label: "Scope",
+          data: sampled.map((d) => d.scope),
+          borderColor: "#6366f1",
+          backgroundColor: "rgba(99,102,241,0.1)",
+          fill: true,
+          pointRadius: 2,
+        },
+        {
+          label: "Done",
+          data: sampled.map((d) => d.done),
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16,185,129,0.1)",
+          fill: true,
+          pointRadius: 2,
+        },
+      ],
+    },
     options: {
-      title: { display: true, text: "Burndown Projection (7-day velocity)", fontSize: 16 },
+      title: { display: true, text: "Burn-Up Chart", fontSize: 16 },
       scales: {
-        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
-        yAxes: [{
-          ticks: { beginAtZero: true },
-          scaleLabel: { display: true, labelString: "Remaining Issues" },
-        }],
+        yAxes: [{ ticks: { beginAtZero: true } }],
       },
       legend: { position: "bottom" },
-      spanGaps: false,
+      plugins: {
+        annotation: {
+          annotations: [{
+            type: "line",
+            mode: "vertical",
+            scaleID: "x-axis-0",
+            value: CUTOFF_DATE.slice(5),
+            borderColor: "#ef4444",
+            borderWidth: 1,
+            borderDash: [5, 5],
+            label: {
+              content: "Linear → GitHub",
+              enabled: true,
+              position: "top",
+              fontSize: 10,
+            },
+          }],
+        },
+      },
     },
-  };
-
-  const url = await quickchartShortUrl(config, 900, 400);
-  if (!url) return "";
-  return `![Projection](${url})`;
+  }, 700, 350);
 }
 
-function generateMilestoneChart(milestones) {
-  const entries = Object.entries(milestones)
-    .filter(([, s]) => s.total > 0)
-    .sort((a, b) => {
-      const pctA = a[1].done / a[1].total;
-      const pctB = b[1].done / b[1].total;
-      return pctB - pctA; // highest completion on top
-    });
+function velocityChart(velocity) {
+  return encodeChart({
+    type: "bar",
+    data: {
+      labels: velocity.map((v) => v.week.slice(5)),
+      datasets: [{
+        label: "Issues Closed",
+        data: velocity.map((v) => v.count),
+        backgroundColor: "#6366f1",
+      }],
+    },
+    options: {
+      title: { display: true, text: "Weekly Velocity", fontSize: 16 },
+      scales: { yAxes: [{ ticks: { beginAtZero: true } }] },
+      legend: { display: false },
+    },
+  }, 700, 300);
+}
 
-  if (entries.length === 0) return "";
+function priorityChart(dist) {
+  const colors = {
+    Urgent: "#ef4444",
+    High: "#f97316",
+    Medium: "#eab308",
+    Low: "#22c55e",
+    "No priority": "#94a3b8",
+    None: "#94a3b8",
+  };
 
-  const config = {
+  const labels = Object.keys(dist);
+  return encodeChart({
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data: labels.map((l) => dist[l]),
+        backgroundColor: labels.map((l) => colors[l] || "#94a3b8"),
+      }],
+    },
+    options: {
+      title: { display: true, text: "Priority Distribution", fontSize: 16 },
+      legend: { position: "bottom" },
+    },
+  }, 400, 350);
+}
+
+function stateChart(states) {
+  const colors = {
+    Done: "#10b981",
+    "In Progress": "#f59e0b",
+    Todo: "#e5e7eb",
+    Canceled: "#94a3b8",
+    Duplicate: "#cbd5e1",
+  };
+
+  const labels = Object.keys(states);
+  return encodeChart({
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data: labels.map((l) => states[l]),
+        backgroundColor: labels.map((l) => colors[l] || "#94a3b8"),
+      }],
+    },
+    options: {
+      title: { display: true, text: "Issue States", fontSize: 16 },
+      legend: { position: "bottom" },
+    },
+  }, 400, 350);
+}
+
+function milestoneChart(milestones) {
+  if (milestones.length === 0) return null;
+
+  return encodeChart({
     type: "horizontalBar",
     data: {
-      labels: entries.map(([n]) => n),
+      labels: milestones.map((m) => m.name),
       datasets: [
         {
           label: "Done",
-          data: entries.map(([, s]) => s.done),
+          data: milestones.map((m) => m.done),
           backgroundColor: "#10b981",
         },
         {
           label: "Remaining",
-          data: entries.map(([, s]) => s.total - s.done),
+          data: milestones.map((m) => m.remaining),
           backgroundColor: "#e5e7eb",
         },
       ],
@@ -729,863 +426,94 @@ function generateMilestoneChart(milestones) {
       },
       legend: { position: "bottom" },
     },
-  };
-
-  const height = Math.max(300, entries.length * 28 + 80);
-  return `![Milestone Progress](${quickchartUrl(config, 700, height)})`;
+  }, 700, Math.max(300, milestones.length * 30 + 100));
 }
 
-function buildVelocityData(issues, slots) {
-  // Count issues completed in each hourly slot
-  return slots.map((slotIso) => {
-    const slotStart = new Date(slotIso);
-    const slotEnd = new Date(slotIso);
-    slotEnd.setHours(slotEnd.getHours() + 1);
-
-    let count = 0;
-    for (const issue of issues) {
-      if (!issue.completedAt) continue;
-      const completed = new Date(issue.completedAt);
-      if (completed >= slotStart && completed < slotEnd) count++;
-    }
-    return count;
-  });
-}
-
-function generateVelocityChart(slotLabels, velocityLine) {
-  const max = Math.max(...velocityLine);
-  if (max === 0) return "";
-
-  const step = Math.max(1, Math.ceil(slotLabels.length / 12));
-  const sparseLabels = slotLabels.map((l, i) => (i % step === 0 ? l : ""));
-
-  const config = {
-    type: "bar",
-    data: {
-      labels: sparseLabels,
-      datasets: [
-        {
-          label: "Issues Closed",
-          data: velocityLine,
-          backgroundColor: "#6366f1",
-        },
-      ],
-    },
-    options: {
-      title: { display: true, text: "Velocity \u2014 Issues Closed per Hour", fontSize: 16 },
-      scales: {
-        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
-        yAxes: [{ ticks: { beginAtZero: true, stepSize: 1 }, scaleLabel: { display: true, labelString: "Closed" } }],
-      },
-      legend: { display: false },
-    },
-  };
-
-  return `![Velocity](${quickchartUrl(config, 800, 250)})`;
-}
-
-function generatePriorityChart(issues) {
-  const counts = {};
-  for (const issue of issues) {
-    const type = issue.state.type;
-    if (type === "completed" || type === "canceled") continue;
-    const name = PRIORITY_NAMES[issue.priority] || "None";
-    counts[name] = (counts[name] || 0) + 1;
-  }
-
-  if (Object.keys(counts).length === 0) return "";
-
-  const order = ["Urgent", "High", "Normal", "Low", "None"];
-  const colors = ["#ef4444", "#f97316", "#eab308", "#3b82f6", "#9ca3af"];
-  const labels = [];
-  const data = [];
-  const bgColors = [];
-
-  for (let i = 0; i < order.length; i++) {
-    if (counts[order[i]]) {
-      labels.push(order[i]);
-      data.push(counts[order[i]]);
-      bgColors.push(colors[i]);
-    }
-  }
-
-  const config = {
-    type: "doughnut",
-    data: {
-      labels,
-      datasets: [{ data, backgroundColor: bgColors }],
-    },
-    options: {
-      title: { display: true, text: "Open Issues by Priority", fontSize: 14 },
-      legend: { position: "right" },
-    },
-  };
-
-  return `![Priority](${quickchartUrl(config, 400, 250)})`;
-}
-
-async function generateScopeCreepCharts(milestones, issues) {
-  // Group issues by milestone
-  const issuesByMs = {};
-  for (const issue of issues) {
-    const ms = issue.projectMilestone;
-    if (!ms || ms.name.startsWith("[DELETED]")) continue;
-    if (!issuesByMs[ms.name]) issuesByMs[ms.name] = [];
-    issuesByMs[ms.name].push(issue);
-  }
-
-  // Only chart milestones with activity
-  const active = Object.entries(milestones)
-    .filter(([, s]) => s.total > 0)
-    .sort((a, b) => (b[1].total - b[1].done) - (a[1].total - a[1].done)); // most remaining first
-
-  if (active.length === 0) return "";
-
-  // Find global earliest for consistent x-axis
-  let earliest = new Date();
-  for (const issue of issues) {
-    if (issue.projectMilestone) {
-      const d = new Date(issue.createdAt);
-      if (d < earliest) earliest = d;
-    }
-  }
-  const hourlySlots = buildHourlySlots(earliest);
-
-  // Generate a compact chart per milestone
-  const charts = [];
-  const labelStep = Math.max(1, Math.ceil(hourlySlots.length / 6));
-
-  for (const [name] of active) {
-    const msIssues = issuesByMs[name] || [];
-    if (msIssues.length === 0) continue;
-
-    const now = new Date();
-    const labels = hourlySlots.map((slot, i) => {
-      if (i % labelStep !== 0) return "";
-      const d = new Date(slot);
-      return `${d.toLocaleString("en", { month: "short" })} ${d.getDate()} ${String(d.getHours()).padStart(2, "0")}h`;
-    });
-
-    // 3 lines per milestone
-    const scopeData = []; // cumulative created (the creep line)
-    const doneData = [];  // cumulative completed
-    const backlogData = []; // remaining = created - done
-
-    for (const slot of hourlySlots) {
-      const slotEnd = new Date(slot);
-      slotEnd.setMinutes(59, 59, 999);
-      let created = 0;
-      let done = 0;
-      for (const issue of msIssues) {
-        if (new Date(issue.createdAt) <= slotEnd) {
-          created++;
-          if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) done++;
-          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
-            if (slotEnd >= now) done++;
-          }
-        }
-      }
-      scopeData.push(created);
-      doneData.push(done);
-      backlogData.push(created - done);
-    }
-
-    const config = {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "Scope",
-            data: scopeData,
-            borderColor: "#6366f1",
-            backgroundColor: "transparent",
-            pointRadius: 0,
-            borderWidth: 1.5,
-            borderDash: [4, 3],
-            fill: false,
-          },
-          {
-            label: "Done",
-            data: doneData,
-            borderColor: "#10b981",
-            backgroundColor: "rgba(16,185,129,0.1)",
-            pointRadius: 0,
-            borderWidth: 2,
-            fill: true,
-          },
-          {
-            label: "Backlog",
-            data: backlogData,
-            borderColor: "#ef4444",
-            backgroundColor: "rgba(239,68,68,0.08)",
-            pointRadius: 0,
-            borderWidth: 2,
-            fill: true,
-          },
-        ],
-      },
-      options: {
-        title: { display: true, text: name, fontSize: 13 },
-        scales: {
-          xAxes: [{ ticks: { maxRotation: 0, fontSize: 9 }, gridLines: { display: false } }],
-          yAxes: [{ ticks: { beginAtZero: true, fontSize: 9 }, gridLines: { drawBorder: false } }],
-        },
-        legend: { display: false },
-        layout: { padding: 4 },
-      },
-    };
-
-    const url = await quickchartShortUrl(config, 360, 200);
-    if (url) charts.push(`<img src="${url}" alt="${name}" width="360">`);
-  }
-
-  if (charts.length === 0) return "";
-
-  // Layout: HTML table, 3 columns
-  const rows = [];
-  for (let i = 0; i < charts.length; i += 3) {
-    const cells = charts.slice(i, i + 3).map((c) => `<td>${c}</td>`);
-    while (cells.length < 3) cells.push("<td></td>");
-    rows.push(`<tr>${cells.join("")}</tr>`);
-  }
-
-  return `<table>${rows.join("\n")}</table>`;
-}
-
-async function generateConfidenceCone(issues) {
-  const now = new Date();
-
-  // Total remaining
-  const total = issues.length;
-  let done = 0;
-  for (const issue of issues) {
-    const type = issue.state.type;
-    if (type === "completed" || type === "canceled") done++;
-  }
-  const remaining = total - done;
-  if (remaining === 0) return "";
-
-  // Collect completion timestamps
-  const closureDates = issues
-    .filter((i) => i.completedAt)
-    .map((i) => new Date(i.completedAt));
-
-  if (closureDates.length < 2) return "";
-
-  // Build per-day closure rate distribution.
-  // Window: from first closure to today (don't penalize pre-work setup days).
-  // Cap lookback at 5 days so ancient history doesn't dilute recent velocity.
-  const earliestClosure = closureDates.reduce((a, b) => (a < b ? a : b));
-  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-  const windowStart = earliestClosure > fiveDaysAgo ? earliestClosure : fiveDaysAgo;
-
-  // Count closures per calendar day
-  const dayCounts = new Map();
-  const startDay = new Date(windowStart);
-  startDay.setHours(0, 0, 0, 0);
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-
-  const cursor = new Date(startDay);
-  while (cursor <= today) {
-    dayCounts.set(cursor.toISOString().slice(0, 10), 0);
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  for (const dt of closureDates) {
-    if (dt < windowStart) continue;
-    const key = dt.toISOString().slice(0, 10);
-    if (dayCounts.has(key)) dayCounts.set(key, dayCounts.get(key) + 1);
-  }
-
-  const rates = [...dayCounts.values()].sort((a, b) => a - b);
-  if (rates.length < 2) return "";
-
-  // Percentile-based velocity: reflects actual daily variance, not window dilution
-  const pct = (arr, p) => {
-    const i = (p / 100) * (arr.length - 1);
-    const lo = Math.floor(i);
-    const hi = Math.ceil(i);
-    return lo === hi ? arr[lo] : arr[lo] + (arr[hi] - arr[lo]) * (i - lo);
-  };
-
-  const optimistic = Math.max(0.5, pct(rates, 75));   // P75 — good days
-  const expected = Math.max(0.5, pct(rates, 50));      // P50 — median day
-  const pessimistic = Math.max(0.5, pct(rates, 25));   // P25 — slow days
-
-  // --- Historical backdata: total (today) minus cumulative closures ---
-  // Anchors y-axis at today's total scope and burns down with closures.
-  // No upward bumps from scope creep — pure closure velocity.
-  const histDays = [...dayCounts.keys()].sort();
-  const histData = [];
-  for (const dayKey of histDays) {
-    const dayEnd = new Date(dayKey + "T23:59:59.999");
-    let doneCount = 0;
-    for (const issue of issues) {
-      if (issue.completedAt && new Date(issue.completedAt) <= dayEnd) {
-        doneCount++;
-      } else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
-        if (dayEnd >= now) doneCount++;
-      }
-    }
-    histData.push(total - doneCount);
-  }
-
-  // --- Forward projection ---
-  const optDays = Math.ceil(remaining / optimistic);
-  const expDays = Math.ceil(remaining / expected);
-  const pesDays = Math.ceil(remaining / pessimistic);
-  const maxProjDays = Math.min(pesDays, 120);
-
-  // --- Build combined label array: history + projection ---
-  const fmtDate = (d) => `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`;
-  const totalPoints = histDays.length + maxProjDays;
-  const labelStep = Math.max(1, Math.ceil(totalPoints / 16));
-  const allLabels = [];
-  let todayIdx = histDays.length - 1; // last history point = today
-
-  // History labels
-  for (let i = 0; i < histDays.length; i++) {
-    if (i % labelStep === 0) {
-      allLabels.push(fmtDate(new Date(histDays[i] + "T12:00:00")));
-    } else {
-      allLabels.push("");
-    }
-  }
-  // Projection labels
-  for (let d = 1; d <= maxProjDays; d++) {
-    const future = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
-    const idx = histDays.length + d - 1;
-    if (idx % labelStep === 0) {
-      allLabels.push(fmtDate(future));
-    } else {
-      allLabels.push("");
-    }
-  }
-
-  // --- Build datasets ---
-  // 1. Actual history (solid line, full span of history, nulls for projection)
-  const actualData = [...histData, ...Array(maxProjDays).fill(null)];
-
-  // 2-4. Projection lines (nulls for history except connection point, then projection)
-  const buildProj = (vel) => {
-    const d = [];
-    for (let i = 0; i < histDays.length - 1; i++) d.push(null);
-    d.push(remaining); // connect to last history point
-    for (let i = 1; i <= maxProjDays; i++) {
-      d.push(Math.max(0, remaining - vel * i));
-    }
-    return d;
-  };
-
-  const optData = buildProj(optimistic);
-  const expData = buildProj(expected);
-  const pesData = buildProj(pessimistic);
-
-  // Completion date labels
-  const optDate = fmtDate(new Date(now.getTime() + optDays * 24 * 60 * 60 * 1000));
-  const expDate = fmtDate(new Date(now.getTime() + expDays * 24 * 60 * 60 * 1000));
-  const pesDate = fmtDate(new Date(now.getTime() + pesDays * 24 * 60 * 60 * 1000));
-
-  // Today's label for annotation (use the actual label text at todayIdx)
-  const todayLabel = allLabels[todayIdx] || fmtDate(now);
-  // Ensure today's label slot is filled (not blank) so annotation can find it
-  if (!allLabels[todayIdx]) allLabels[todayIdx] = fmtDate(now);
-
-  const config = {
-    type: "line",
-    data: {
-      labels: allLabels,
-      datasets: [
-        // Actual burn history — solid bold line
-        {
-          label: `Actual — ${total} total, ${remaining} remaining`,
-          data: actualData,
-          borderColor: "#6366f1",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderWidth: 3,
-          fill: false,
-        },
-        // Pessimistic projection (top boundary), fills down to optimistic (dataset index 3)
-        {
-          label: `Pessimistic — ${pesDate} (P25: ${Math.round(pessimistic * 10) / 10}/day)`,
-          data: pesData,
-          borderColor: "#ef4444",
-          backgroundColor: "rgba(239,68,68,0.10)",
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          fill: 3, // fill down to optimistic (dataset index 3)
-        },
-        // Expected projection — center of cone
-        {
-          label: `Expected — ${expDate} (P50: ${Math.round(expected * 10) / 10}/day)`,
-          data: expData,
-          borderColor: "#a855f7",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderWidth: 2,
-          borderDash: [8, 4],
-          fill: false,
-        },
-        // Optimistic projection (bottom boundary)
-        {
-          label: `Optimistic — ${optDate} (P75: ${Math.round(optimistic * 10) / 10}/day)`,
-          data: optData,
-          borderColor: "#10b981",
-          backgroundColor: "transparent",
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [6, 3],
-          fill: false,
-        },
-      ],
-    },
-    options: {
-      title: { display: true, text: `Confidence Cone — When Are We Done? (${rates.length}-day sample)`, fontSize: 16 },
-      scales: {
-        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
-        yAxes: [{
-          ticks: { beginAtZero: true },
-          scaleLabel: { display: true, labelString: "Remaining Issues" },
-        }],
-      },
-      legend: { position: "bottom" },
-      layout: {
-        padding: { top: 20, right: 20 },
-      },
-      annotation: {
-        annotations: [
-          // "Today" vertical line
-          {
-            type: "line",
-            mode: "vertical",
-            scaleID: "x-axis-0",
-            value: todayLabel,
-            borderColor: "rgba(99,102,241,0.5)",
-            borderWidth: 2,
-            borderDash: [4, 4],
-            label: {
-              enabled: true,
-              content: "Today",
-              position: "top",
-              yAdjust: 10,
-              backgroundColor: "rgba(99,102,241,0.8)",
-              fontSize: 11,
-            },
-          },
-          // "Done" at zero
-          {
-            type: "line",
-            mode: "horizontal",
-            scaleID: "y-axis-0",
-            value: 0,
-            borderColor: "rgba(16,185,129,0.4)",
-            borderWidth: 1,
-            borderDash: [4, 4],
-          },
-        ],
-      },
-      spanGaps: false,
-    },
-  };
-
-  const url = await quickchartShortUrl(config, 800, 350);
-  if (!url) return "";
-  return `![Confidence Cone](${url})`;
-}
-
-async function generatePriorityProjection(issues) {
-  const now = new Date();
-  const windowMs = 7 * 24 * 60 * 60 * 1000;
-  const windowStart = new Date(now.getTime() - windowMs);
-
-  // Group by priority
-  const priorities = {};
-  for (const issue of issues) {
-    const name = PRIORITY_NAMES[issue.priority] || "None";
-    if (!priorities[name]) priorities[name] = { total: 0, done: 0, recentDone: 0, issues: [] };
-    priorities[name].total++;
-    priorities[name].issues.push(issue);
-    const type = issue.state.type;
-    if (type === "completed" || type === "canceled") {
-      priorities[name].done++;
-      if (issue.completedAt && new Date(issue.completedAt) >= windowStart) {
-        priorities[name].recentDone++;
-      }
-    }
-  }
-
-  // Only chart priorities with remaining issues, in severity order
-  const order = ["Urgent", "High", "Normal", "Low", "None"];
-  const colors = { Urgent: "#ef4444", High: "#f97316", Normal: "#eab308", Low: "#3b82f6", None: "#9ca3af" };
-  const incomplete = order.filter((p) => priorities[p] && priorities[p].total - priorities[p].done > 0);
-
-  if (incomplete.length === 0) return "";
-
-  // Find earliest issue creation for history
-  let earliest = now;
-  for (const issue of issues) {
-    const d = new Date(issue.createdAt);
-    if (d < earliest) earliest = d;
-  }
-
-  const historySlots = buildHourlySlots(earliest);
-  const datasets = [];
-
-  // Pre-compute max projection horizon across all priorities so we can
-  // use a single sampling step for projection labels.
-  const hoursPerWeek = 7 * 24;
-  let maxProjHours = 0;
-  for (const pName of incomplete) {
-    const stats = priorities[pName];
-    const remaining = stats.total - stats.done;
-    const vel = Math.max(1, stats.recentDone) / hoursPerWeek;
-    let h = Math.ceil(remaining / vel);
-    if (h > 90 * 24) h = 90 * 24;
-    if (h > maxProjHours) maxProjHours = h;
-  }
-  const projStep = Math.max(1, Math.ceil(maxProjHours / 48));
-  let maxProjSlots = Math.ceil(maxProjHours / projStep);
-
-  for (const pName of incomplete) {
-    const stats = priorities[pName];
-    const color = colors[pName];
-    const remaining = stats.total - stats.done;
-    const velocity = Math.max(1, stats.recentDone) / hoursPerWeek; // issues per hour
-
-    // Historical: remaining per hour for this priority
-    const histData = historySlots.map((slot) => {
-      const slotEnd = new Date(slot);
-      slotEnd.setMinutes(59, 59, 999);
-      let created = 0;
-      let doneCount = 0;
-      for (const issue of stats.issues) {
-        if (new Date(issue.createdAt) <= slotEnd) {
-          created++;
-          if (issue.completedAt && new Date(issue.completedAt) <= slotEnd) doneCount++;
-          else if (!issue.completedAt && (issue.state.type === "completed" || issue.state.type === "canceled")) {
-            if (slotEnd >= now) doneCount++;
-          }
-        }
-      }
-      return created - doneCount;
-    });
-
-    let projHours = Math.ceil(remaining / velocity);
-    if (projHours > 90 * 24) projHours = 90 * 24;
-    const projSlotCount = Math.ceil(projHours / projStep);
-
-    // Projected data (sampled at projStep-hour intervals)
-    const projData = [];
-    for (let d = 0; d < historySlots.length - 1; d++) projData.push(null);
-    projData.push(remaining);
-    for (let s = 1; s <= projSlotCount; s++) {
-      const h = s * projStep;
-      projData.push(Math.max(0, Math.round((remaining - velocity * h) * 10) / 10));
-    }
-
-    // Solid historical line
-    datasets.push({
-      label: pName,
-      data: [...histData, ...Array(projSlotCount).fill(null)],
-      borderColor: color,
-      backgroundColor: "transparent",
-      pointRadius: 0,
-      borderWidth: 2.5,
-      fill: false,
-    });
-
-    // Dashed projected line
-    datasets.push({
-      label: "",
-      data: projData,
-      borderColor: color,
-      backgroundColor: "transparent",
-      pointRadius: 0,
-      borderWidth: 2,
-      borderDash: [6, 3],
-      fill: false,
-    });
-  }
-
-  // Labels — hourly format for history, sampled projection
-  const fmtDate = (d) => `${d.toLocaleString("en", { month: "short" })} ${d.getDate()} ${String(d.getHours()).padStart(2, "0")}h`;
-  const allLabels = [];
-  const labelStep = Math.max(1, Math.ceil((historySlots.length + maxProjSlots) / 16));
-
-  for (let i = 0; i < historySlots.length; i++) {
-    if (i % labelStep === 0) {
-      allLabels.push(fmtDate(new Date(historySlots[i])));
-    } else {
-      allLabels.push("");
-    }
-  }
-  for (let s = 1; s <= maxProjSlots; s++) {
-    const future = new Date(now.getTime() + s * projStep * 3600000);
-    const idx = historySlots.length + s - 1;
-    if (idx % labelStep === 0) {
-      allLabels.push(fmtDate(future));
-    } else {
-      allLabels.push("");
-    }
-  }
-
-  const config = {
-    type: "line",
-    data: { labels: allLabels, datasets },
-    options: {
-      title: { display: true, text: "Priority Burndown — When Is Each Severity Done?", fontSize: 16 },
-      scales: {
-        xAxes: [{ ticks: { maxRotation: 45, fontSize: 10 } }],
-        yAxes: [{
-          ticks: { beginAtZero: true },
-          scaleLabel: { display: true, labelString: "Remaining Issues" },
-        }],
-      },
-      legend: { position: "bottom" },
-      spanGaps: false,
-    },
-  };
-
-  const url = await quickchartShortUrl(config, 900, 400);
-  if (!url) return "";
-  return `![Priority Burndown](${url})`;
-}
-
-function autoGroupRepoStats(repoStats) {
-  // Discover common first-token prefixes shared by 2+ display names
-  const prefixMap = {}; // prefix → [displayName, ...]
-  for (const name of Object.keys(repoStats)) {
-    if (name === "other") continue;
-    const token = name.split("-")[0];
-    if (!prefixMap[token]) prefixMap[token] = [];
-    prefixMap[token].push(name);
-  }
-
-  const grouped = {};
-  const consumed = new Set();
-
-  // Merge groups with 2+ members under pluralized prefix
-  for (const [prefix, members] of Object.entries(prefixMap)) {
-    if (members.length >= 2) {
-      const groupName = prefix.endsWith("s") ? prefix : prefix + "s";
-      let total = 0, done = 0, open = 0;
-      for (const m of members) {
-        total += repoStats[m].total;
-        done += repoStats[m].done;
-        open += repoStats[m].open;
-        consumed.add(m);
-      }
-      grouped[groupName] = { total, done, open };
-    }
-  }
-
-  // Keep ungrouped items as-is
-  for (const [name, stats] of Object.entries(repoStats)) {
-    if (!consumed.has(name)) {
-      grouped[name] = stats;
-    }
-  }
-
-  return grouped;
-}
-
-function generateGroupedChart(repoStats) {
-  const grouped = autoGroupRepoStats(repoStats);
-
-  const entries = Object.entries(grouped)
-    .filter(([, s]) => s.total > 0)
-    .sort((a, b) => {
-      const pctA = a[1].done / a[1].total;
-      const pctB = b[1].done / b[1].total;
-      return pctB - pctA;
-    });
-
-  if (entries.length === 0) return "";
-
-  const config = {
-    type: "horizontalBar",
-    data: {
-      labels: entries.map(([n]) => n),
-      datasets: [
-        {
-          label: "Done",
-          data: entries.map(([, s]) => s.done),
-          backgroundColor: "#10b981",
-        },
-        {
-          label: "Remaining",
-          data: entries.map(([, s]) => s.total - s.done),
-          backgroundColor: "#e5e7eb",
-        },
-      ],
-    },
-    options: {
-      title: { display: true, text: "Progress by Category", fontSize: 16 },
-      scales: {
-        xAxes: [{ stacked: true, ticks: { beginAtZero: true } }],
-        yAxes: [{ stacked: true, ticks: { fontSize: 11 } }],
-      },
-      legend: { position: "bottom" },
-    },
-  };
-
-  const height = Math.max(250, entries.length * 28 + 80);
-  return `![Category Progress](${quickchartUrl(config, 700, height)})`;
-}
-
-function generateStateChart(stats) {
-  const config = {
-    type: "doughnut",
-    data: {
-      labels: ["Completed", "In Progress", "Backlog"],
-      datasets: [
-        {
-          data: [stats.done, stats.inProgress, stats.backlog],
-          backgroundColor: ["#10b981", "#6366f1", "#e5e7eb"],
-        },
-      ],
-    },
-    options: {
-      title: { display: true, text: "Issue State Breakdown", fontSize: 14 },
-      legend: { position: "right" },
-    },
-  };
-
-  return `![States](${quickchartUrl(config, 400, 250)})`;
-}
-
-async function main() {
-  console.log("Fetching labels from Linear...");
-  await fetchLabels();
-
-  console.log("Fetching issues from Linear...");
-  const issues = await fetchAllIssues();
-  console.log(`Fetched ${issues.length} issues`);
-
-  const { slotLabels, scopeLine, doneLine, repoStats, slots } = buildBurnupData(issues);
-  const stats = buildSummaryStats(issues);
-
-  // Chart 1: Burn-Up
-  const burnup = await generateBurnupChart(slotLabels, scopeLine, doneLine, slots, issues);
-
-  // Chart 2: Milestone Progress + Projection
-  const milestoneData = buildMilestoneData(issues);
-  const milestoneChart = generateMilestoneChart(milestoneData);
-  const projectionChart = await generateProjectionChart(milestoneData, issues);
-
-  // Chart 3: Scope Creep per Milestone (mini charts)
-  const scopeCreepChart = await generateScopeCreepCharts(milestoneData, issues);
-
-  // Chart 4: Confidence Cone
-  const confidenceCone = await generateConfidenceCone(issues);
-
-  // Chart 5: Priority Burndown Projection
-  const priorityProjection = await generatePriorityProjection(issues);
-
-  // Chart 6: Velocity (per hour)
-  const velocityLine = buildVelocityData(issues, slots);
-  const velocityChart = generateVelocityChart(slotLabels, velocityLine);
-
-  // Chart 7: Priority Distribution (open issues)
-  const priorityChart = generatePriorityChart(issues);
-
-  // Chart 8: State Breakdown
-  const stateChart = generateStateChart(stats);
-
-  const table = generateTable(repoStats);
+// ── Update README ───────────────────────────────────────────────────────────
+
+function updateReadme(charts) {
+  const readmePath = join(ROOT, "profile", "README.md");
+  const totalIssues = charts.totalScope;
+  const totalDone = charts.totalDone;
   const now = new Date().toISOString().slice(0, 16).replace("T", " ");
 
-  const sections = [`# WOPR Network
+  const content = `# WOPR Network
 
-**AI-native multi-channel bot platform** \u2014 Discord, Slack, Telegram, WhatsApp, Signal, IRC, and more.
+**AI-native multi-channel bot platform** — Discord, Slack, Telegram, WhatsApp, Signal, IRC, and more.
 
 ## Burn-Up
 
-${burnup}`];
+![Burn-Up Chart](${charts.burnUp})
 
-  if (milestoneChart) {
-    sections.push(`## Milestones
+## Velocity
 
-${milestoneChart}`);
-  }
+![Weekly Velocity](${charts.velocity})
 
-  if (projectionChart) {
-    sections.push(`## Projected Completion
+## Priority Distribution &nbsp; Issue States
 
-${projectionChart}`);
-  }
+<p>
+<img src="${charts.priority}" width="400" alt="Priority Distribution" />
+<img src="${charts.states}" width="400" alt="Issue States" />
+</p>
 
-  if (confidenceCone) {
-    sections.push(`## Confidence Cone
-
-${confidenceCone}`);
-  }
-
-  if (scopeCreepChart) {
-    sections.push(`## Scope Creep
-
-${scopeCreepChart}`);
-  }
-
-  if (priorityProjection) {
-    sections.push(`## Priority Burndown
-
-${priorityProjection}`);
-  }
-
-  if (velocityChart) {
-    sections.push(`## Velocity
-
-${velocityChart}`);
-  }
-
-  const groupedChart = generateGroupedChart(repoStats);
-  if (groupedChart) {
-    sections.push(`## Progress by Category
-
-${groupedChart}`);
-  }
-
-  sections.push(`## Progress by Repo
-
-${table}`);
-
-  // Doughnut charts side by side
-  if (stateChart || priorityChart) {
-    sections.push(`## Distribution
-
-${stateChart || ""} ${priorityChart || ""}`);
-  }
-
-  sections.push(`## Summary
-
-| Metric | Count |
-|--------|-------|
-| Total Issues | ${stats.total} |
-| Completed | ${stats.done} |
-| In Progress | ${stats.inProgress} |
-| Backlog | ${stats.backlog} |
-| Completion | ${stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0}% |
+${charts.milestones ? `## Milestones\n\n![Milestone Progress](${charts.milestones})` : ""}
 
 ---
 
-*Updated automatically every hour from [Linear](https://linear.app/wopr) \u2014 last run: ${now} UTC*`);
+**${totalDone.toLocaleString()}** of **${totalIssues.toLocaleString()}** issues completed &bull; Updated ${now} UTC
+`;
 
-  const readme = sections.join("\n\n") + "\n";
-
-  const { writeFileSync } = await import("node:fs");
-  writeFileSync("profile/README.md", readme);  // writeFileSync imported dynamically for compat
-  console.log("Wrote profile/README.md");
-  console.log(
-    `Stats: ${stats.total} total, ${stats.done} done, ${stats.inProgress} in progress, ${stats.backlog} backlog`,
-  );
-  console.log(`Charts: burn-up (${slotLabels.length} slots), milestones (${Object.keys(milestoneData).length}), velocity, priority pie, state pie`);
+  writeFileSync(readmePath, content);
+  console.log(`  Updated: ${readmePath}`);
 }
 
-main().catch((e) => {
-  console.error(e);
+// ── Main ────────────────────────────────────────────────────────────────────
+
+async function main() {
+  console.log("WOPR Burndown Chart Generator");
+  console.log("==============================");
+  console.log(`  Cutoff date: ${CUTOFF_DATE} (Linear → GitHub)`);
+
+  console.log("\n1. Loading Linear history...");
+  const history = loadLinearHistory();
+  console.log(`   ${history.summary.totalIssues} issues, ${history.burnUp.length} data points`);
+
+  console.log("\n2. Fetching GitHub Project items...");
+  const ghIssues = fetchGitHubIssues();
+  console.log(`   ${ghIssues.length} items in GitHub Project`);
+
+  console.log("\n3. Fetching GitHub milestones...");
+  const ghMilestones = fetchGitHubMilestones();
+  console.log(`   ${ghMilestones.length} milestones across repos`);
+
+  console.log("\n4. Building charts...");
+  const burnUp = buildBurnUp(history, ghIssues);
+  const velocity = buildWeeklyVelocity(history, ghIssues);
+  const priority = buildPriorityDistribution(history, ghIssues);
+  const states = buildStateBreakdown(history, ghIssues);
+  const milestones = buildMilestoneProgress(history, ghMilestones);
+
+  const lastBurnUp = burnUp[burnUp.length - 1];
+
+  const charts = {
+    burnUp: burnUpChart(burnUp),
+    velocity: velocityChart(velocity),
+    priority: priorityChart(priority),
+    states: stateChart(states),
+    milestones: milestoneChart(milestones),
+    totalScope: lastBurnUp.scope,
+    totalDone: lastBurnUp.done,
+  };
+
+  console.log("\n5. Updating README...");
+  updateReadme(charts);
+
+  console.log("\nDone!");
+  console.log(`  Scope: ${lastBurnUp.scope} | Done: ${lastBurnUp.done}`);
+  console.log(`  Data sources: Linear (${history.burnUp.length} days) + GitHub (${ghIssues.length} items)`);
+}
+
+main().catch((err) => {
+  console.error("Failed:", err.message);
   process.exit(1);
 });
