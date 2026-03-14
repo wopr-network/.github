@@ -127,12 +127,18 @@ function fetchGitHubIssues() {
   }
 }
 
+function fetchOrgRepos() {
+  try {
+    const result = gh(`repo list ${ORG} --limit 200 --json name --jq '.[].name'`);
+    return result.split("\n").filter(Boolean);
+  } catch {
+    console.log("  Could not list org repos, using empty list");
+    return [];
+  }
+}
+
 function fetchGitHubMilestones() {
-  const repos = [
-    "wopr", "wopr-platform", "wopr-platform-ui", "silo", "norad",
-    "cheyenne-mountain", "platform-ui-core", "platform-core",
-    "paperclip", "paperclip-platform", "paperclip-platform-ui",
-  ];
+  const repos = fetchOrgRepos();
 
   const milestones = [];
   for (const repo of repos) {
@@ -152,6 +158,32 @@ function fetchGitHubMilestones() {
     } catch { /* repo may not have milestones */ }
   }
   return milestones;
+}
+
+function fetchAllRepoIssues() {
+  const repos = fetchOrgRepos();
+  const issues = [];
+
+  for (const repo of repos) {
+    try {
+      // Fetch both open and closed issues (up to 200 per repo)
+      for (const state of ["open", "closed"]) {
+        const result = gh(
+          `issue list --repo ${ORG}/${repo} --state ${state} --limit 200 --json number,title,state,createdAt,closedAt,labels`
+        );
+        if (result) {
+          const parsed = JSON.parse(result);
+          for (const issue of parsed) {
+            issue.repo = repo;
+            issue.labels = (issue.labels || []).map((l) => l.name || l);
+            issues.push(issue);
+          }
+        }
+      }
+    } catch { /* repo may not have issues enabled */ }
+  }
+
+  return issues;
 }
 
 // ── Load historical data ────────────────────────────────────────────────────
@@ -718,14 +750,30 @@ async function main() {
   console.log(`   ${history.summary.totalIssues} issues, ${history.burnUp.length} data points`);
 
   console.log("\n2. Fetching GitHub Project items...");
-  const ghIssues = fetchGitHubIssues();
-  console.log(`   ${ghIssues.length} items in GitHub Project`);
+  const projectItems = fetchGitHubIssues();
+  console.log(`   ${projectItems.length} items in GitHub Project`);
 
-  console.log("\n3. Fetching GitHub milestones...");
+  console.log("\n3. Fetching issues across all org repos...");
+  const repoIssues = fetchAllRepoIssues();
+  console.log(`   ${repoIssues.length} issues across ${fetchOrgRepos().length} repos`);
+
+  // Merge project items + repo issues, dedupe by title+repo
+  const seen = new Set();
+  const ghIssues = [];
+  for (const item of [...projectItems, ...repoIssues]) {
+    const key = `${item.repo || ""}:${item.title || item.number}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      ghIssues.push(item);
+    }
+  }
+  console.log(`   ${ghIssues.length} unique GitHub issues total`);
+
+  console.log("\n4. Fetching GitHub milestones...");
   const ghMilestones = fetchGitHubMilestones();
   console.log(`   ${ghMilestones.length} milestones across repos`);
 
-  console.log("\n4. Building time series...");
+  console.log("\n5. Building time series...");
   const ts = buildDailyTimeSeries(history, ghIssues);
   const rates = computeRates(ts);
   const proj = buildProjection(ts, rates);
@@ -742,7 +790,7 @@ async function main() {
     console.log(`   Creep \u2192 0: ${proj.crossingLabel}`);
   }
 
-  console.log("\n5. Generating charts...");
+  console.log("\n6. Generating charts...");
   const [burnUpUrl, velocityUrl, priorityUrl, statesUrl, milestonesUrl] =
     await Promise.all([
       burnUpChart(proj),
@@ -761,7 +809,7 @@ async function main() {
   const lastPt = ts.scopeLine.length - 1;
   const repoTable = generateTable(repoStats);
 
-  console.log("\n6. Updating README...");
+  console.log("\n7. Updating README...");
   updateReadme({
     burnUpUrl,
     velocityUrl,
