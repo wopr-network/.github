@@ -205,9 +205,17 @@ function buildDailyTimeSeries(history, ghIssues) {
   const dailyClosed = {};
 
   // Reconstruct daily deltas from Linear burn-up (cumulative)
-  for (let i = 0; i < history.burnUp.length; i++) {
-    const pt = history.burnUp[i];
-    const prev = i > 0 ? history.burnUp[i - 1] : { scope: 0, done: 0 };
+  // Treat canceled/duplicate as resolved (they're not open work)
+  const canceled = history.summary.canceled || 0;
+  const burnUp = history.burnUp.map((pt, i) => {
+    // Distribute canceled proportionally across the timeline
+    const progress = (i + 1) / history.burnUp.length;
+    return { ...pt, done: pt.done + Math.round(canceled * progress) };
+  });
+
+  for (let i = 0; i < burnUp.length; i++) {
+    const pt = burnUp[i];
+    const prev = i > 0 ? burnUp[i - 1] : { scope: 0, done: 0 };
     dailyCreated[pt.date] = pt.scope - prev.scope;
     dailyClosed[pt.date] = pt.done - prev.done;
   }
