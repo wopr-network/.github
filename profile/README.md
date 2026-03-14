@@ -4,23 +4,45 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart?c=%7B%22type%22%3A%22line%22%2C%22data%22%3A%7B%22labels%22%3A%5B%2202-10%22%2C%2202-11%22%2C%2202-12%22%2C%2202-13%22%2C%2202-14%22%2C%2202-15%22%2C%2202-16%22%2C%2202-17%22%2C%2202-18%22%2C%2202-19%22%2C%2202-20%22%2C%2202-21%22%2C%2202-22%22%2C%2202-23%22%2C%2202-24%22%2C%2202-25%22%2C%2202-26%22%2C%2202-27%22%2C%2202-28%22%2C%2203-01%22%2C%2203-02%22%2C%2203-03%22%2C%2203-04%22%2C%2203-05%22%2C%2203-06%22%2C%2203-07%22%2C%2203-08%22%2C%2203-09%22%2C%2203-10%22%2C%2203-11%22%2C%2203-12%22%2C%2203-13%22%2C%2203-14%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Scope%22%2C%22data%22%3A%5B19%2C107%2C260%2C370%2C491%2C515%2C538%2C586%2C627%2C732%2C853%2C922%2C963%2C972%2C992%2C1049%2C1052%2C1079%2C1187%2C1331%2C1532%2C1603%2C1681%2C1778%2C1867%2C1946%2C2013%2C2142%2C2154%2C2187%2C2206%2C2207%2C2207%5D%2C%22borderColor%22%3A%22%236366f1%22%2C%22backgroundColor%22%3A%22rgba(99%2C102%2C241%2C0.1)%22%2C%22fill%22%3Atrue%2C%22pointRadius%22%3A2%7D%2C%7B%22label%22%3A%22Done%22%2C%22data%22%3A%5B1%2C49%2C156%2C282%2C390%2C413%2C413%2C485%2C545%2C574%2C615%2C711%2C762%2C762%2C840%2C899%2C958%2C1012%2C1103%2C1249%2C1427%2C1482%2C1635%2C1670%2C1732%2C1821%2C1900%2C1954%2C1955%2C1985%2C2018%2C2030%2C2078%5D%2C%22borderColor%22%3A%22%2310b981%22%2C%22backgroundColor%22%3A%22rgba(16%2C185%2C129%2C0.1)%22%2C%22fill%22%3Atrue%2C%22pointRadius%22%3A2%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Burn-Up%20Chart%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%7D%5D%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%2C%22plugins%22%3A%7B%22annotation%22%3A%7B%22annotations%22%3A%5B%7B%22type%22%3A%22line%22%2C%22mode%22%3A%22vertical%22%2C%22scaleID%22%3A%22x-axis-0%22%2C%22value%22%3A%2203-14%22%2C%22borderColor%22%3A%22%23ef4444%22%2C%22borderWidth%22%3A1%2C%22borderDash%22%3A%5B5%2C5%5D%2C%22label%22%3A%7B%22content%22%3A%22Linear%20%E2%86%92%20GitHub%22%2C%22enabled%22%3Atrue%2C%22position%22%3A%22top%22%2C%22fontSize%22%3A10%7D%7D%5D%7D%7D%7D%7D&w=700&h=350&bkg=%23ffffff)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-8fc7735d-0203-4a39-b831-d06ea22d4edd)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart?c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%2202-09%22%2C%2202-16%22%2C%2202-23%22%2C%2203-02%22%2C%2203-09%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Issues%20Closed%22%2C%22data%22%3A%5B413%2C349%2C487%2C651%2C178%5D%2C%22backgroundColor%22%3A%22%236366f1%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Weekly%20Velocity%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%7D%5D%7D%2C%22legend%22%3A%7B%22display%22%3Afalse%7D%7D%7D&w=700&h=300&bkg=%23ffffff)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-70039e55-047c-420c-840e-5274ead772d8)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart?c=%7B%22type%22%3A%22doughnut%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Medium%22%2C%22Low%22%2C%22High%22%2C%22Urgent%22%2C%22No%20priority%22%5D%2C%22datasets%22%3A%5B%7B%22data%22%3A%5B679%2C373%2C802%2C325%2C28%5D%2C%22backgroundColor%22%3A%5B%22%23eab308%22%2C%22%2322c55e%22%2C%22%23f97316%22%2C%22%23ef4444%22%2C%22%2394a3b8%22%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Priority%20Distribution%22%2C%22fontSize%22%3A16%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%7D%7D&w=400&h=350&bkg=%23ffffff" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart?c=%7B%22type%22%3A%22doughnut%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Done%22%2C%22Canceled%22%5D%2C%22datasets%22%3A%5B%7B%22data%22%3A%5B2078%2C129%5D%2C%22backgroundColor%22%3A%5B%22%2310b981%22%2C%22%2394a3b8%22%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Issue%20States%22%2C%22fontSize%22%3A16%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%7D%7D&w=400&h=350&bkg=%23ffffff" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-d0d6ed81-4e91-4816-a66a-27fe4e33ca0a" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-fd7fc636-19a0-4886-ab35-ec4000daf6f0" width="400" alt="Issue States" />
 </p>
 
 ## Milestones
 
-![Milestone Progress](https://quickchart.io/chart?c=%7B%22type%22%3A%22horizontalBar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Paperclip%20Platform%20(Linear)%22%2C%22bunker%20(Linear)%22%2C%22norad%20(Linear)%22%2C%22radar%20(Linear)%22%2C%22NORAD%20(Linear)%22%2C%22RADAR%20(Linear)%22%2C%22DEFCON%20(Linear)%22%2C%22Agentic%20Engineering%20SOP%20(Linear)%22%2C%22WOPR%20v1.1%20(Linear)%22%2C%22WOPR%20as%20a%20Service%20(Linear)%22%2C%22WOPR%20v1.0%20(Linear)%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Done%22%2C%22data%22%3A%5B100%2C100%2C0%2C100%2C100%2C100%2C100%2C100%2C100%2C100%2C100%5D%2C%22backgroundColor%22%3A%22%2310b981%22%7D%2C%7B%22label%22%3A%22Remaining%22%2C%22data%22%3A%5B0%2C0%2C100%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%5D%2C%22backgroundColor%22%3A%22%23e5e7eb%22%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Milestone%20Progress%22%2C%22fontSize%22%3A16%7D%2C%22scales%22%3A%7B%22xAxes%22%3A%5B%7B%22stacked%22%3Atrue%2C%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%7D%5D%2C%22yAxes%22%3A%5B%7B%22stacked%22%3Atrue%2C%22ticks%22%3A%7B%22fontSize%22%3A11%7D%7D%5D%7D%2C%22legend%22%3A%7B%22position%22%3A%22bottom%22%7D%7D%7D&w=700&h=430&bkg=%23ffffff)
+![Milestone Progress](https://quickchart.io/chart/render/zf-efbf1a8d-a84f-42f0-afb2-0202189d6815)
+
+## Repo Breakdown
+
+| Repo | Total | Done | Open | Progress |
+|------|-------|------|------|----------|
+| platform | 615 | 615 | 0 | ✅ |
+| core | 469 | 469 | 0 | ✅ |
+| platform-ui | 367 | 367 | 0 | ✅ |
+| testing | 353 | 353 | 0 | ✅ |
+| security | 342 | 342 | 0 | ✅ |
+| monetization | 198 | 198 | 0 | ✅ |
+| devops | 105 | 105 | 0 | ✅ |
+| silo | 102 | 102 | 0 | ✅ |
+| discord | 62 | 62 | 0 | ✅ |
+| platform-core | 31 | 31 | 0 | ✅ |
+| webui | 27 | 27 | 0 | ✅ |
+| slack | 14 | 14 | 0 | ✅ |
+| whatsapp | 12 | 12 | 0 | ✅ |
+| telegram | 11 | 11 | 0 | ✅ |
+| github | 8 | 8 | 0 | ✅ |
+| msteams | 7 | 7 | 0 | ✅ |
+| plugin-types | 7 | 7 | 0 | ✅ |
 
 ---
 
-**2,078** of **2,207** issues completed &bull; Updated 2026-03-14 23:18 UTC
+**2,078** of **2,207** issues completed &bull; Updated 2026-03-14 23:22 UTC
