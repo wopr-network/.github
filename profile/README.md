@@ -4,22 +4,22 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-dfd08371-3de4-4900-b995-ee6352e39811)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-c42d5e9f-321a-495f-b493-43cf12a54b17)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-224043fe-531b-4eac-b5ea-e9f041908287)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-aaf8a474-0e9f-40cd-bbcc-f5cb9321bb46)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-c5a2ea34-7efd-432e-a7d1-aabdf0f86a55" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-6bf5ed48-8ab9-4fcf-913a-49bd439396cb" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-ba59d1a7-d44d-4464-8836-92b735a953ff" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-4f76088f-51bd-46e9-9b80-505e0a25ecbb" width="400" alt="Issue States" />
 </p>
 
 ## Milestones
 
-![Milestone Progress](https://quickchart.io/chart/render/zf-10c3de08-137b-4fbf-9468-90dfd293880d)
+![Milestone Progress](https://quickchart.io/chart/render/zf-57eaac44-92c2-413f-b2bd-b4a0d005d531)
 
 ## Repo Breakdown
 
@@ -50,4 +50,4 @@
 
 ---
 
-**2,230** of **2,231** issues completed &bull; Updated 2026-03-25 13:17 UTC
+**2,230** of **2,231** issues completed &bull; Updated 2026-03-25 15:03 UTC
