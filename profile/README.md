@@ -4,22 +4,22 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-38585fec-2be8-4ef5-97a7-afe89bdbacfb)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-33ed424d-777c-4a17-ba94-381677186df9)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-6e74fba2-e445-48f8-bb60-5b5be2a756dc)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-ca30f6b3-7d4d-48bb-95fe-cc85c56091c6)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-e0993bbb-8ffe-48dc-90d5-81ae4bd21f9e" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-aedf184b-f027-4d84-a90d-903459fa8e7b" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-698ada4d-1448-4258-97b9-420e205f14ae" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-53950ac0-7e4f-4cc2-8a05-2638e692ecd5" width="400" alt="Issue States" />
 </p>
 
 ## Milestones
 
-![Milestone Progress](https://quickchart.io/chart/render/zf-f16b825e-7126-4362-8704-65d8d0e9463f)
+![Milestone Progress](https://quickchart.io/chart/render/zf-c9415cbc-a900-4d4b-b2af-5d22ec6f8771)
 
 ## Repo Breakdown
 
@@ -40,14 +40,18 @@
 | slack | 14 | 14 | 0 | ✅ |
 | whatsapp | 12 | 12 | 0 | ✅ |
 | telegram | 11 | 11 | 0 | ✅ |
+| holyship-platform-ui | 10 | 10 | 0 | ✅ |
 | holyship | 9 | 9 | 0 | ✅ |
 | github | 8 | 8 | 0 | ✅ |
 | msteams | 7 | 7 | 0 | ✅ |
 | plugin-types | 7 | 7 | 0 | ✅ |
 | platform-ui-core | 3 | 3 | 0 | ✅ |
+| nemoclaw-platform-ui | 3 | 0 | 3 | 0% |
 | wopr-plugin-github | 3 | 0 | 3 | 0% |
+| paperclip-platform-ui | 2 | 0 | 2 | 0% |
 | nemoclaw | 1 | 0 | 1 | 0% |
+| nemoclaw-platform | 1 | 0 | 1 | 0% |
 
 ---
 
-**2,230** of **2,231** issues completed &bull; Updated 2026-03-26 02:35 UTC
+**2,240** of **2,247** issues completed &bull; Updated 2026-03-26 05:10 UTC
