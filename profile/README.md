@@ -4,22 +4,22 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-c3f30194-f5e9-4e4c-9020-888123db3d61)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-aa75cac4-8389-4101-8d84-87b26969f18c)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-f02dd024-da87-4e29-a60e-5b44a0df7b68)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-a2673b7a-3655-4bbe-a7f5-2146fa4a363d)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-c4ef7970-3eeb-4b98-a9ad-b5f56291639a" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-986bde59-a90b-4871-8bff-c155882ed168" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-acc7b367-71a2-4bc5-ae43-e9963958f12f" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-cbddd694-8999-41df-ab79-4259694b0dd7" width="400" alt="Issue States" />
 </p>
 
 ## Milestones
 
-![Milestone Progress](https://quickchart.io/chart/render/zf-7b531799-99ca-4192-b430-290e326a1b47)
+![Milestone Progress](https://quickchart.io/chart/render/zf-0c6efee8-dd62-4ba6-85e9-8ace0c4f615c)
 
 ## Repo Breakdown
 
@@ -49,9 +49,9 @@
 | wopr-plugin-github | 3 | 0 | 3 | 0% |
 | nemoclaw-platform-ui | 3 | 0 | 3 | 0% |
 | paperclip-platform-ui | 2 | 0 | 2 | 0% |
-| nemoclaw-platform | 1 | 0 | 1 | 0% |
 | nemoclaw | 1 | 0 | 1 | 0% |
+| nemoclaw-platform | 1 | 0 | 1 | 0% |
 
 ---
 
-**2,240** of **2,247** issues completed &bull; Updated 2026-03-29 07:08 UTC
+**2,240** of **2,247** issues completed &bull; Updated 2026-03-29 08:44 UTC
