@@ -2,9 +2,7 @@
 /**
  * Generates QuickChart.io chart images for the GitHub org profile README.
  *
- * Data sources:
- *   - data/linear-history.json — historical data from Linear (before cutoff)
- *   - GitHub Projects API (gh CLI) — current data (cutoff onward)
+ * Data source: GitHub Projects API + org-wide issue queries (gh CLI).
  *
  * Charts:
  *   1. Burn-Up Chart — scope vs completed with creep line + projection
@@ -17,7 +15,7 @@
  * Usage: node scripts/burndown.mjs
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
@@ -29,7 +27,6 @@ process.env.TZ = process.env.TZ || "America/Los_Angeles";
 
 const ORG = "wopr-network";
 const PROJECT_NUMBER = 1;
-const CUTOFF_DATE = "2026-03-14";
 
 // ── QuickChart Short URL API ────────────────────────────────────────────────
 
@@ -139,7 +136,6 @@ function fetchOrgRepos() {
 
 function fetchGitHubMilestones() {
   const repos = fetchOrgRepos();
-
   const milestones = [];
   for (const repo of repos) {
     try {
@@ -163,10 +159,8 @@ function fetchGitHubMilestones() {
 function fetchAllRepoIssues() {
   const repos = fetchOrgRepos();
   const issues = [];
-
   for (const repo of repos) {
     try {
-      // Fetch both open and closed issues (up to 200 per repo)
       for (const state of ["open", "closed"]) {
         const result = gh(
           `issue list --repo ${ORG}/${repo} --state ${state} --limit 200 --json number,title,state,createdAt,closedAt,labels`
@@ -182,59 +176,26 @@ function fetchAllRepoIssues() {
       }
     } catch { /* repo may not have issues enabled */ }
   }
-
   return issues;
 }
 
-// ── Load historical data ────────────────────────────────────────────────────
+// ── Build Data ──────────────────────────────────────────────────────────────
 
-function loadLinearHistory() {
-  const historyFile = join(ROOT, "data", "linear-history.json");
-  if (!existsSync(historyFile)) {
-    console.error("Missing data/linear-history.json — run linear-export.mjs first");
-    process.exit(1);
-  }
-  return JSON.parse(readFileSync(historyFile, "utf8"));
-}
-
-// ── Merge & Build Data ──────────────────────────────────────────────────────
-
-function buildDailyTimeSeries(history, ghIssues) {
-  // Start with Linear daily data
+function buildDailyTimeSeries(ghIssues) {
   const dailyCreated = {};
   const dailyClosed = {};
 
-  // Reconstruct daily deltas from Linear burn-up (cumulative)
-  // Treat canceled/duplicate as resolved (they're not open work)
-  const canceled = history.summary.canceled || 0;
-  const burnUp = history.burnUp.map((pt, i) => {
-    // Distribute canceled proportionally across the timeline
-    const progress = (i + 1) / history.burnUp.length;
-    return { ...pt, done: pt.done + Math.round(canceled * progress) };
-  });
-
-  for (let i = 0; i < burnUp.length; i++) {
-    const pt = burnUp[i];
-    const prev = i > 0 ? burnUp[i - 1] : { scope: 0, done: 0 };
-    dailyCreated[pt.date] = pt.scope - prev.scope;
-    dailyClosed[pt.date] = pt.done - prev.done;
-  }
-
-  // Add GitHub issues after cutoff
   for (const issue of ghIssues) {
     const created = issue.createdAt?.slice(0, 10);
-    if (created && created > CUTOFF_DATE) {
+    if (created) {
       dailyCreated[created] = (dailyCreated[created] || 0) + 1;
     }
     if (issue.closedAt) {
       const closed = issue.closedAt.slice(0, 10);
-      if (closed > CUTOFF_DATE) {
-        dailyClosed[closed] = (dailyClosed[closed] || 0) + 1;
-      }
+      dailyClosed[closed] = (dailyClosed[closed] || 0) + 1;
     }
   }
 
-  // Build cumulative arrays
   const allDates = [...new Set([
     ...Object.keys(dailyCreated),
     ...Object.keys(dailyClosed),
@@ -259,7 +220,6 @@ function buildDailyTimeSeries(history, ghIssues) {
 }
 
 function computeRates(ts) {
-  // Compute rates from the last 5 days of data
   const now = new Date();
   const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
   const windowDays = 5;
@@ -274,7 +234,7 @@ function computeRates(ts) {
     if (new Date(date) >= fiveDaysAgo) closedInWindow += count;
   }
 
-  const scopeRate = createdInWindow / windowDays; // per day
+  const scopeRate = createdInWindow / windowDays;
   const doneRate = closedInWindow / windowDays;
   const creepRate = scopeRate - doneRate;
 
@@ -285,7 +245,6 @@ function buildProjection(ts, rates) {
   const lastIdx = ts.scopeLine.length - 1;
   const { scopeRate, doneRate, creepRate } = rates;
 
-  // Project forward 30 days (or until creep hits 0)
   let projDays = 30;
   let crossingDay = null;
   let crossingLabel = null;
@@ -294,22 +253,19 @@ function buildProjection(ts, rates) {
     const toZero = Math.ceil(-ts.creepLine[lastIdx] / creepRate);
     projDays = Math.min(Math.max(toZero, 30), 60);
     crossingDay = toZero;
-    const crossingDate = new Date(
-      Date.now() + toZero * 24 * 60 * 60 * 1000
-    );
+    const crossingDate = new Date(Date.now() + toZero * 24 * 60 * 60 * 1000);
     crossingLabel = `${crossingDate.toLocaleString("en", { month: "short" })} ${crossingDate.getDate()}`;
   }
 
   const buildProj = (line, rate) => {
     const proj = new Array(line.length).fill(null);
-    proj[lastIdx] = line[lastIdx]; // connect to last real point
+    proj[lastIdx] = line[lastIdx];
     for (let i = 1; i <= projDays; i++) {
       proj.push(Math.max(0, Math.round(line[lastIdx] + rate * i)));
     }
     return proj;
   };
 
-  // Pad historical lines
   const scopePadded = [...ts.scopeLine, ...new Array(projDays).fill(null)];
   const donePadded = [...ts.doneLine, ...new Array(projDays).fill(null)];
   const creepPadded = [...ts.creepLine, ...new Array(projDays).fill(null)];
@@ -318,14 +274,12 @@ function buildProjection(ts, rates) {
   const doneProj = buildProj(ts.doneLine, doneRate);
   const creepProj = buildProj(ts.creepLine, creepRate);
 
-  // Extend labels for projection
   const allLabels = [...ts.labels];
   for (let i = 1; i <= projDays; i++) {
     const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
     allLabels.push(d.toISOString().slice(0, 10));
   }
 
-  // Sparse labels for readability
   const labelStep = Math.max(1, Math.ceil(allLabels.length / 20));
   const sparseLabels = allLabels.map((l, i) =>
     i % labelStep === 0 ? l.slice(5) : ""
@@ -339,12 +293,8 @@ function buildProjection(ts, rates) {
   };
 }
 
-function buildWeeklyVelocity(history, ghIssues) {
+function buildWeeklyVelocity(ghIssues) {
   const weekMap = {};
-  for (const entry of history.weeklyVelocity) {
-    weekMap[entry.week] = entry.count;
-  }
-
   for (const issue of ghIssues) {
     if (issue.closedAt) {
       const d = new Date(issue.closedAt);
@@ -354,14 +304,13 @@ function buildWeeklyVelocity(history, ghIssues) {
       weekMap[weekKey] = (weekMap[weekKey] || 0) + 1;
     }
   }
-
   return Object.entries(weekMap)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, count]) => ({ week, count }));
 }
 
-function buildPriorityDistribution(history, ghIssues) {
-  const dist = { ...history.priorityDistribution };
+function buildPriorityDistribution(ghIssues) {
+  const dist = {};
   for (const issue of ghIssues) {
     const p = issue.priority || "No priority";
     dist[p] = (dist[p] || 0) + 1;
@@ -369,32 +318,17 @@ function buildPriorityDistribution(history, ghIssues) {
   return dist;
 }
 
-function buildStateBreakdown(history, ghIssues) {
-  const states = {
-    Done: history.summary.completed,
-    Canceled: history.summary.canceled,
-  };
-
+function buildStateBreakdown(ghIssues) {
+  const states = {};
   for (const issue of ghIssues) {
     const status = issue.status || (issue.state === "CLOSED" ? "Done" : "Todo");
     states[status] = (states[status] || 0) + 1;
   }
-
   return states;
 }
 
-function buildMilestoneProgress(history, ghMilestones) {
+function buildMilestoneProgress(ghMilestones) {
   const milestones = [];
-
-  for (const m of history.milestones) {
-    const pct = Math.round(m.progress * 100);
-    milestones.push({
-      name: m.name,
-      done: pct,
-      remaining: 100 - pct,
-    });
-  }
-
   for (const m of ghMilestones) {
     const total = m.open_issues + m.closed_issues;
     if (total === 0) continue;
@@ -404,46 +338,11 @@ function buildMilestoneProgress(history, ghMilestones) {
       remaining: m.open_issues,
     });
   }
-
   return milestones;
 }
 
-function buildRepoBreakdown(history, ghIssues) {
-  // From Linear label distribution
-  const REPO_LABELS = {
-    "wopr-core": "core",
-    "wopr-platform": "platform",
-    "wopr-platform-ui": "platform-ui",
-    "platform-ui": "platform-ui",
-    "platform-core": "platform-core",
-    "defcon": "silo",
-    "plugin-discord": "discord",
-    "plugin-msteams": "msteams",
-    "plugin-whatsapp": "whatsapp",
-    "plugin-telegram": "telegram",
-    "plugin-slack": "slack",
-    "plugin-github": "github",
-    "plugin-webui": "webui",
-    "plugin-types": "plugin-types",
-    "security": "security",
-    "testing": "testing",
-    "monetization": "monetization",
-    "devops": "devops",
-  };
-
+function buildRepoBreakdown(ghIssues) {
   const repoStats = {};
-
-  // From Linear labels
-  for (const [label, displayName] of Object.entries(REPO_LABELS)) {
-    const count = history.labelDistribution[label] || 0;
-    if (count > 0) {
-      repoStats[displayName] = repoStats[displayName] || { total: 0, done: 0, open: 0 };
-      repoStats[displayName].total += count;
-      repoStats[displayName].done += count; // all Linear issues are done
-    }
-  }
-
-  // From GitHub issues
   for (const issue of ghIssues) {
     const repo = issue.repo || "other";
     repoStats[repo] = repoStats[repo] || { total: 0, done: 0, open: 0 };
@@ -454,7 +353,6 @@ function buildRepoBreakdown(history, ghIssues) {
       repoStats[repo].open += 1;
     }
   }
-
   return repoStats;
 }
 
@@ -463,13 +361,11 @@ function generateTable(repoStats) {
   const lines = [];
   lines.push("| Repo | Total | Done | Open | Progress |");
   lines.push("|------|-------|------|------|----------|");
-
   for (const [name, stats] of sorted) {
     const pct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
     const bar = pct === 100 ? "\u2705" : `${pct}%`;
     lines.push(`| ${name} | ${stats.total} | ${stats.done} | ${stats.open} | ${bar} |`);
   }
-
   return lines.join("\n");
 }
 
@@ -537,7 +433,6 @@ async function burnUpChart(proj) {
     },
   ];
 
-  // Add crossing marker if creep is projected to reach zero
   if (proj.crossingDay !== null && proj.crossingDay <= proj.projDays) {
     const markerData = new Array(proj.lastIdx + proj.projDays + 1).fill(null);
     markerData[proj.lastIdx + proj.crossingDay] = 0;
@@ -553,9 +448,6 @@ async function burnUpChart(proj) {
     });
   }
 
-  // Add vertical cutoff annotation
-  const cutoffIdx = proj.sparseLabels.findIndex((l) => l === CUTOFF_DATE.slice(5));
-
   const config = {
     type: "line",
     data: { labels: proj.sparseLabels, datasets },
@@ -567,27 +459,6 @@ async function burnUpChart(proj) {
       legend: {
         position: "bottom",
         labels: { filter: (item) => item.text !== "" },
-      },
-      plugins: {
-        annotation: {
-          annotations: [
-            {
-              type: "line",
-              mode: "vertical",
-              scaleID: "x-axis-0",
-              value: cutoffIdx >= 0 ? cutoffIdx : CUTOFF_DATE.slice(5),
-              borderColor: "rgba(107,114,128,0.5)",
-              borderWidth: 1,
-              borderDash: [5, 5],
-              label: {
-                content: "Linear \u2192 GitHub",
-                enabled: true,
-                position: "top",
-                fontSize: 10,
-              },
-            },
-          ],
-        },
       },
     },
   };
@@ -612,7 +483,6 @@ async function velocityChart(velocity) {
       legend: { display: false },
     },
   };
-
   return quickchartShortUrl(config, 700, 300);
 }
 
@@ -625,7 +495,6 @@ async function priorityChart(dist) {
     "No priority": "#94a3b8",
     None: "#94a3b8",
   };
-
   const labels = Object.keys(dist);
   const config = {
     type: "doughnut",
@@ -641,7 +510,6 @@ async function priorityChart(dist) {
       legend: { position: "bottom" },
     },
   };
-
   return quickchartShortUrl(config, 400, 350);
 }
 
@@ -653,7 +521,6 @@ async function stateChart(states) {
     Canceled: "#94a3b8",
     Duplicate: "#cbd5e1",
   };
-
   const labels = Object.keys(states);
   const config = {
     type: "doughnut",
@@ -669,13 +536,11 @@ async function stateChart(states) {
       legend: { position: "bottom" },
     },
   };
-
   return quickchartShortUrl(config, 400, 350);
 }
 
 async function milestoneChart(milestones) {
   if (milestones.length === 0) return null;
-
   const config = {
     type: "horizontalBar",
     data: {
@@ -702,7 +567,6 @@ async function milestoneChart(milestones) {
       legend: { position: "bottom" },
     },
   };
-
   return quickchartShortUrl(config, 700, Math.max(300, milestones.length * 30 + 100));
 }
 
@@ -751,17 +615,12 @@ ${charts.repoTable}
 async function main() {
   console.log("WOPR Burndown Chart Generator");
   console.log("==============================");
-  console.log(`  Cutoff: ${CUTOFF_DATE} (Linear \u2192 GitHub)`);
 
-  console.log("\n1. Loading Linear history...");
-  const history = loadLinearHistory();
-  console.log(`   ${history.summary.totalIssues} issues, ${history.burnUp.length} data points`);
-
-  console.log("\n2. Fetching GitHub Project items...");
+  console.log("\n1. Fetching GitHub Project items...");
   const projectItems = fetchGitHubIssues();
   console.log(`   ${projectItems.length} items in GitHub Project`);
 
-  console.log("\n3. Fetching issues across all org repos...");
+  console.log("\n2. Fetching issues across all org repos...");
   const repoIssues = fetchAllRepoIssues();
   console.log(`   ${repoIssues.length} issues across ${fetchOrgRepos().length} repos`);
 
@@ -777,19 +636,19 @@ async function main() {
   }
   console.log(`   ${ghIssues.length} unique GitHub issues total`);
 
-  console.log("\n4. Fetching GitHub milestones...");
+  console.log("\n3. Fetching GitHub milestones...");
   const ghMilestones = fetchGitHubMilestones();
   console.log(`   ${ghMilestones.length} milestones across repos`);
 
-  console.log("\n5. Building time series...");
-  const ts = buildDailyTimeSeries(history, ghIssues);
+  console.log("\n4. Building time series...");
+  const ts = buildDailyTimeSeries(ghIssues);
   const rates = computeRates(ts);
   const proj = buildProjection(ts, rates);
-  const velocity = buildWeeklyVelocity(history, ghIssues);
-  const priority = buildPriorityDistribution(history, ghIssues);
-  const states = buildStateBreakdown(history, ghIssues);
-  const milestones = buildMilestoneProgress(history, ghMilestones);
-  const repoStats = buildRepoBreakdown(history, ghIssues);
+  const velocity = buildWeeklyVelocity(ghIssues);
+  const priority = buildPriorityDistribution(ghIssues);
+  const states = buildStateBreakdown(ghIssues);
+  const milestones = buildMilestoneProgress(ghMilestones);
+  const repoStats = buildRepoBreakdown(ghIssues);
 
   console.log(`   Scope rate: ${rates.scopeRate.toFixed(1)}/day`);
   console.log(`   Done rate: ${rates.doneRate.toFixed(1)}/day`);
@@ -798,7 +657,7 @@ async function main() {
     console.log(`   Creep \u2192 0: ${proj.crossingLabel}`);
   }
 
-  console.log("\n6. Generating charts...");
+  console.log("\n5. Generating charts...");
   const [burnUpUrl, velocityUrl, priorityUrl, statesUrl, milestonesUrl] =
     await Promise.all([
       burnUpChart(proj),
@@ -817,7 +676,7 @@ async function main() {
   const lastPt = ts.scopeLine.length - 1;
   const repoTable = generateTable(repoStats);
 
-  console.log("\n7. Updating README...");
+  console.log("\n6. Updating README...");
   updateReadme({
     burnUpUrl,
     velocityUrl,
@@ -825,13 +684,13 @@ async function main() {
     statesUrl,
     milestonesUrl,
     repoTable,
-    totalScope: ts.scopeLine[lastPt],
-    totalDone: ts.doneLine[lastPt],
+    totalScope: ts.scopeLine[lastPt] || 0,
+    totalDone: ts.doneLine[lastPt] || 0,
   });
 
   console.log("\nDone!");
-  console.log(`  Scope: ${ts.scopeLine[lastPt]} | Done: ${ts.doneLine[lastPt]}`);
-  console.log(`  Data sources: Linear (${history.burnUp.length} days) + GitHub (${ghIssues.length} items)`);
+  console.log(`  Scope: ${ts.scopeLine[lastPt] || 0} | Done: ${ts.doneLine[lastPt] || 0}`);
+  console.log(`  GitHub issues: ${ghIssues.length}`);
 }
 
 main().catch((err) => {
