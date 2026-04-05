@@ -2,8 +2,12 @@ name: Burndown Chart
 
 on:
   schedule:
-    - cron: "0 * * * *" # Every hour
-  workflow_dispatch: # Manual trigger
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: burndown-chart
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -33,5 +37,6 @@ jobs:
             echo "No changes"
           else
             git commit -m "chore: update burndown chart [skip ci]"
+            git pull --rebase
             git push
           fi
