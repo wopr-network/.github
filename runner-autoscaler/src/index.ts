@@ -29,30 +29,51 @@ async function main(): Promise<void> {
   const vault = new VaultClient(config.vault.addr, config.vault.roleId, config.vault.secretId);
   await vault.login();
 
-  // 3. Initial secrets
+  // 3. Initial secrets — webhook_secret is needed at server build time;
+  // everything else is fetched lazily in getRunnerSecrets().
   const githubFields = await vault.readKV("shared/github");
   const webhookSecret = githubFields["webhook_secret"];
   if (!webhookSecret) {
     throw new Error("vault secret/shared/github is missing webhook_secret");
   }
 
-  // The runner-registration PAT lives at secret/shared/github/runner_registration_pat
-  // (admin:org scope, used by the spawned container's entrypoint to obtain a
-  // registration token). The wopr-network GitHub *App*'s webhook_secret is for
-  // verifying inbound webhooks — different field, same vault path.
-  const getRunnerToken = async (): Promise<string> => {
-    const fields = await vault.readKV("shared/github");
-    const pat = fields["runner_registration_pat"];
-    if (!pat) {
+  // Lazy getter: re-reads vault each call so secret rotation just works.
+  // VaultClient handles re-login on 403 internally. The github token is
+  // mandatory; the dockerhub/registry creds are optional — if vault doesn't
+  // have them (e.g., during a partial migration), runners spawn without
+  // them and accept the consequences (rate-limited pulls, registry-auth
+  // failures for private images).
+  const getRunnerSecrets = async (): Promise<import("./webhook.js").RunnerSecrets> => {
+    const [gh, dh, reg] = await Promise.all([
+      vault.readKV("shared/github"),
+      vault.readKV("shared/dockerhub").catch((err) => {
+        log.warn({ err }, "vault secret/shared/dockerhub unreadable; spawning without dockerhub auth");
+        return {} as Record<string, string>;
+      }),
+      vault.readKV("shared/registry").catch((err) => {
+        log.warn({ err }, "vault secret/shared/registry unreadable; spawning without registry auth");
+        return {} as Record<string, string>;
+      }),
+    ]);
+
+    const githubToken = gh["runner_registration_pat"];
+    if (!githubToken) {
       throw new Error("vault secret/shared/github is missing runner_registration_pat");
     }
-    return pat;
+
+    const secrets: import("./webhook.js").RunnerSecrets = { githubToken };
+    if (dh["username"]) secrets.dockerhubUsername = dh["username"];
+    if (dh["token"]) secrets.dockerhubToken = dh["token"];
+    if (reg["url"]) secrets.registryUrl = reg["url"];
+    if (reg["username"]) secrets.registryUsername = reg["username"];
+    if (reg["password"]) secrets.registryPassword = reg["password"];
+    return secrets;
   };
 
-  // The octokit client uses a token too. We initialise with the runner-registration PAT
-  // so we can call the runners API. (The webhook_secret is HMAC, not bearer auth.)
-  const initialGithubToken = await getRunnerToken();
-  const github = new GitHubClient(config.github.org, initialGithubToken);
+  // The octokit client needs a token at construction time so it can call the runners API.
+  // We use the runner_registration_pat (admin:org); fetch fresh secrets to seed it.
+  const initialSecrets = await getRunnerSecrets();
+  const github = new GitHubClient(config.github.org, initialSecrets.githubToken);
 
   // 4. Docker
   const docker = new DockerPool(config);
@@ -60,7 +81,7 @@ async function main(): Promise<void> {
   log.info("docker ping ok");
 
   // 5. Wire context
-  const ctx: WebhookContext = { config, github, docker, getRunnerToken };
+  const ctx: WebhookContext = { config, github, docker, getRunnerSecrets };
 
   // 6. Server + reaper
   const app = buildServer({ webhookSecret, ctx });

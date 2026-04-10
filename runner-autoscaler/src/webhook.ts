@@ -13,12 +13,28 @@ import type { DockerPool } from "./docker.js";
 import type { GitHubClient } from "./github.js";
 import { log } from "./log.js";
 
+/**
+ * Everything a spawned runner container needs in its env. The github token is
+ * mandatory (registration would fail without it). DockerHub and registry
+ * credentials are optional — if vault doesn't have them, runners just skip
+ * those `docker login` calls and accept the consequences (rate limits or
+ * failed pulls from the self-hosted registry).
+ */
+export interface RunnerSecrets {
+  githubToken: string;
+  dockerhubUsername?: string;
+  dockerhubToken?: string;
+  registryUrl?: string;
+  registryUsername?: string;
+  registryPassword?: string;
+}
+
 export interface WebhookContext {
   config: Config;
   github: GitHubClient;
   docker: DockerPool;
-  /** Lazy getter for the GitHub PAT used to register the spawned runner. */
-  getRunnerToken: () => Promise<string>;
+  /** Lazy getter for all secrets needed to spawn a runner. Re-fetched per call so vault rotation Just Works. */
+  getRunnerSecrets: () => Promise<RunnerSecrets>;
 }
 
 /**
@@ -81,9 +97,9 @@ export async function handleWorkflowJob(
   }
 
   // No idle, under capacity, labels match — spawn.
-  const githubToken = await ctx.getRunnerToken();
+  const secrets = await ctx.getRunnerSecrets();
   const containerId = await ctx.docker.spawnRunner({
-    githubToken,
+    ...secrets,
     githubOrg: ctx.config.github.org,
     runnerLabels: ctx.config.pool.runnerLabels,
   });
