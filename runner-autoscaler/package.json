@@ -10,7 +10,9 @@
     "dev": "node --watch --import tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src",
-    "format": "biome format --write src"
+    "format": "biome format --write src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "engines": {
     "node": ">=20.10.0"
@@ -29,6 +31,7 @@
     "@types/dockerode": "^3.3.32",
     "@types/node": "^22.9.0",
     "tsx": "^4.19.2",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.0"
   }
 }

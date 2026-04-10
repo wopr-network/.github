@@ -22,10 +22,18 @@ export interface WebhookContext {
 }
 
 /**
- * Returns true iff every label our pool advertises is requested by the job.
- * (We're allowed to be a *superset* of what the job asks for, not a subset.)
+ * True iff our pool advertises every label the job requested.
+ * The pool may advertise *more* labels than the job asks for; that's fine.
+ *
+ * Examples:
+ *   pool=[self-hosted, Linux, X64], job=[self-hosted]            → true
+ *   pool=[self-hosted, Linux, X64], job=[self-hosted, Linux]      → true
+ *   pool=[self-hosted, Linux, X64], job=[ubuntu-latest]           → false
+ *   pool=[self-hosted, Linux, X64], job=[self-hosted, gpu]        → false (we don't have gpu)
+ *
+ * Exported for testing.
  */
-function poolMatchesJob(jobLabels: string[], poolLabels: string[]): boolean {
+export function poolMatchesJob(jobLabels: string[], poolLabels: string[]): boolean {
   return jobLabels.every((jobLabel) => poolLabels.includes(jobLabel));
 }
 
