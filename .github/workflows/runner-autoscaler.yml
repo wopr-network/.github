@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    name: Lint, Typecheck, Build
+    name: Lint, Typecheck, Test, Build
     runs-on: [self-hosted, Linux, X64]
     defaults:
       run:
@@ -43,6 +43,9 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
 
       - name: Build
         run: pnpm build
