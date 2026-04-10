@@ -1,0 +1,56 @@
+# runner-autoscaler + cloudflared sidecar
+#
+# The cloudflared TUNNEL_TOKEN is a per-tunnel token issued by Cloudflare's
+# dashboard or API. It's NOT the same as `secret/shared/cloudflare/tunnel_edit`
+# in vault — that one is the API token used to *manage* tunnels. The
+# TUNNEL_TOKEN here is the runtime credential the cloudflared daemon uses to
+# connect a specific tunnel to Cloudflare's edge.
+#
+# To get a TUNNEL_TOKEN: create a tunnel in the Cloudflare dashboard
+# (Zero Trust → Networks → Tunnels → Create), and it'll show you the token
+# right after creation. Save it to .env as CLOUDFLARED_TUNNEL_TOKEN.
+
+name: runner-autoscaler
+
+services:
+  autoscaler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - VAULT_ADDR=${VAULT_ADDR}
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID}
+      - GITHUB_ORG=${GITHUB_ORG:-wopr-network}
+      - LISTENER_PORT=3000
+      - LISTENER_BIND=0.0.0.0
+      - RUNNER_IMAGE=${RUNNER_IMAGE:-github-runners-runner}
+      - RUNNER_LABELS=${RUNNER_LABELS:-self-hosted,Linux,X64}
+      - MAX_RUNNERS=${MAX_RUNNERS:-10}
+      - IDLE_TIMEOUT_MINUTES=${IDLE_TIMEOUT_MINUTES:-10}
+      - REAPER_INTERVAL_SECONDS=${REAPER_INTERVAL_SECONDS:-60}
+      - RUNNER_NETWORK=${RUNNER_NETWORK:-github-runners_runner-network}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # On macOS Docker Desktop the socket is root-grouped (660 root:root).
+    # Adding gid 0 lets the non-root `app` user inside the container reach it.
+    # Harmless on Linux where docker.sock is typically root:docker.
+    group_add:
+      - "0"
+    networks:
+      - autoscaler-net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TUNNEL_TOKEN}
+    networks:
+      - autoscaler-net
+    depends_on:
+      - autoscaler
+
+networks:
+  autoscaler-net:
+    driver: bridge

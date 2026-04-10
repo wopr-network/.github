@@ -1,0 +1,34 @@
+{
+  "name": "runner-autoscaler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Webhook-driven autoscaler for self-hosted GitHub Actions runners. Spawns containers from the github-runners image when jobs queue, reaps them after idle.",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "node --watch --import tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "format": "biome format --write src"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@octokit/rest": "^21.0.0",
+    "@octokit/webhooks-methods": "^5.1.0",
+    "@octokit/webhooks-types": "^7.6.1",
+    "dockerode": "^4.0.0",
+    "hono": "^4.6.0",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.9",
+    "@types/dockerode": "^3.3.32",
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3"
+  }
+}
