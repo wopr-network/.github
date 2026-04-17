@@ -4,17 +4,17 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-633db5f6-b76e-44ad-bff9-8ead4ab738f1)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-2200ddce-be38-4ca5-ab27-957f2367dfd0)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-15c1ce3e-fad1-4580-b358-85a0238c35f3)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-6df2bba6-c813-4eee-99e6-fb5092c03058)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-02645b89-d7fb-443f-8856-613eb062fb28" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-3b93fe67-7bc9-409c-a9c9-d6eef9f98c49" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-64e563e1-e256-47f4-8398-b2ea210ff768" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-bee8f01d-5587-44e8-ad84-c92000b05d70" width="400" alt="Issue States" />
 </p>
 
 
@@ -25,9 +25,9 @@
 |------|-------|------|------|----------|
 | wopr | 281 | 200 | 81 | 71% |
 | holyship | 16 | 15 | 1 | 94% |
+| .github | 11 | 0 | 11 | 0% |
 | platform-core | 11 | 11 | 0 | ✅ |
 | holyship-platform-ui | 10 | 10 | 0 | ✅ |
-| .github | 9 | 0 | 9 | 0% |
 | platform-ui-core | 3 | 3 | 0 | ✅ |
 | wopr-plugin-github | 3 | 0 | 3 | 0% |
 | nemoclaw-platform-ui | 3 | 0 | 3 | 0% |
@@ -37,4 +37,4 @@
 
 ---
 
-**239** of **340** issues completed &bull; Updated 2026-04-17 21:45 UTC
+**239** of **342** issues completed &bull; Updated 2026-04-17 22:43 UTC
