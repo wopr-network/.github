@@ -4,17 +4,17 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-d2637ecf-4e74-4645-877f-e53351295399)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-0c8b45c1-3fcf-44d5-9c08-85f868f59bd7)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-82080a57-79bc-44f8-88cf-aa0dc0b17a02)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-cd835f9d-b580-4e9e-aa65-d028349a834b)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-df9556c4-d8aa-4597-941e-f3c5a928b666" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-31829a7c-f240-44ff-87e9-fd53876bca11" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-df71cb61-1cae-49d0-b2eb-73c438d90dfb" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-9fd63e2c-b767-489a-b618-74d8ad7638b7" width="400" alt="Issue States" />
 </p>
 
 
@@ -24,7 +24,7 @@
 | Repo | Total | Done | Open | Progress |
 |------|-------|------|------|----------|
 | wopr | 281 | 200 | 81 | 71% |
-| .github | 16 | 0 | 16 | 0% |
+| .github | 18 | 0 | 18 | 0% |
 | holyship | 16 | 15 | 1 | 94% |
 | platform-core | 11 | 11 | 0 | ✅ |
 | holyship-platform-ui | 10 | 10 | 0 | ✅ |
@@ -37,4 +37,4 @@
 
 ---
 
-**239** of **347** issues completed &bull; Updated 2026-04-18 02:38 UTC
+**239** of **349** issues completed &bull; Updated 2026-04-18 05:10 UTC
