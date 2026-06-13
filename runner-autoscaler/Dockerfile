@@ -4,8 +4,10 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 
-# Enable corepack so we get the exact pnpm version pinned in package.json
-RUN corepack enable
+# Enable corepack and pin pnpm to the repo's known-good major. Unpinned
+# Corepack resolves current pnpm, and pnpm 11 fails this image on ignored
+# dependency build scripts.
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY package.json pnpm-lock.yaml ./
 COPY tsconfig.json ./

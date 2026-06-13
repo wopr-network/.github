@@ -23,22 +23,27 @@ services:
       - VAULT_ROLE_ID=${VAULT_ROLE_ID}
       - VAULT_SECRET_ID=${VAULT_SECRET_ID}
       - GITHUB_ORG=${GITHUB_ORG:-wopr-network}
+      - GITHUB_REPOS=${GITHUB_REPOS:-}
+      - GITHUB_REPO_PAT_FIELD=${GITHUB_REPO_PAT_FIELD:-ops_pat}
       - LISTENER_PORT=3000
       - LISTENER_BIND=0.0.0.0
       - RUNNER_IMAGE=${RUNNER_IMAGE:-github-runners-runner}
-      - RUNNER_LABELS=${RUNNER_LABELS:-self-hosted,Linux,X64}
+      - RUNNER_LABELS=${RUNNER_LABELS:-self-hosted,Linux,X64,vault}
       - MAX_RUNNERS=${MAX_RUNNERS:-10}
       - IDLE_TIMEOUT_MINUTES=${IDLE_TIMEOUT_MINUTES:-10}
       - REAPER_INTERVAL_SECONDS=${REAPER_INTERVAL_SECONDS:-60}
       - RUNNER_NETWORK=${RUNNER_NETWORK:-github-runners_runner-network}
+      - RUNNER_VAULT_GITHUB_PAT_FILE=${RUNNER_VAULT_GITHUB_PAT_FILE:-/home/tsavo/.config/vault/secrets/github-pat}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    # On macOS Docker Desktop the socket is root-grouped (660 root:root).
-    # Adding gid 0 lets the non-root `app` user inside the container reach it.
-    # Harmless on Linux where docker.sock is typically root:docker.
+    # Socket access varies by host:
+    #   - macOS Docker Desktop: socket is 660 root:root → need gid 0.
+    #   - Linux / WSL2: socket is 660 root:docker → need gid 1001 (docker group on battleaxe).
+    # Adding both lets the non-root `app` user inside the container reach it on both hosts.
     group_add:
       - "0"
+      - "1001"
     networks:
       - autoscaler-net
 

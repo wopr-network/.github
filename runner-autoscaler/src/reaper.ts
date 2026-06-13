@@ -3,6 +3,11 @@
 // than IDLE_TIMEOUT_MINUTES, send SIGTERM via docker stop. The runner's
 // entrypoint trap will gracefully deregister from GitHub.
 //
+// Multi-scope: containers carry their scope in a docker label. Each tick
+// groups containers by scope and queries the matching GitHub endpoint
+// (org vs repo). This keeps API calls proportional to the number of
+// active scopes, not the number of containers.
+//
 // State: an in-memory Map of `runner_name -> first_idle_at_ms`. On boot
 // the map is empty; the reaper rebuilds it on its first tick. The
 // worst-case effect of a listener restart is one extra IDLE_TIMEOUT_MINUTES
@@ -10,8 +15,9 @@
 
 import type { Config } from "./config.js";
 import type { DockerPool, ManagedContainer } from "./docker.js";
-import type { GitHubClient, OrgRunner } from "./github.js";
+import type { GitHubClient, Runner } from "./github.js";
 import { log } from "./log.js";
+import { scopeKey, type Scope } from "./scope.js";
 
 export class Reaper {
   /** runner.name -> ms timestamp when we first saw it idle */
@@ -48,51 +54,80 @@ export class Reaper {
   }
 
   private async tick(): Promise<void> {
-    const [containers, runners] = await Promise.all([this.docker.listManaged(), this.github.listRunners()]);
+    // Garbage-collect dead managed containers first (failed runners with
+    // RestartPolicy "no" linger as exited containers; they hold no runner slot
+    // and never match a GitHub runner, so nothing else cleans them up).
+    const removed = await this.docker.removeExited().catch((err) => {
+      log.warn({ err }, "reaper: removeExited failed");
+      return 0;
+    });
+    if (removed > 0) log.info({ removed }, "reaper: cleaned up dead managed containers");
 
-    // Index runners by name for O(1) lookup
-    const runnersByName = new Map<string, OrgRunner>();
-    for (const r of runners) runnersByName.set(r.name, r);
+    const containers = await this.docker.listManaged();
+
+    // Group containers by scope key so we only hit GitHub once per scope.
+    const byScope = new Map<string, { scope: Scope; containers: ManagedContainer[] }>();
+    for (const c of containers) {
+      const key = scopeKey(c.scope);
+      const entry = byScope.get(key);
+      if (entry) {
+        entry.containers.push(c);
+      } else {
+        byScope.set(key, { scope: c.scope, containers: [c] });
+      }
+    }
 
     const now = Date.now();
     const seen = new Set<string>();
 
-    for (const container of containers) {
-      // The github-runners entrypoint sets RUNNER_NAME=wopr-runner-<hostname suffix>.
-      // The container name is `github-runners-runner-N` from compose, OR a random
-      // hash if we created it via the API. The runner's *registered name* on GitHub
-      // is keyed off the container hostname (12-char id), so we look that up via
-      // the docker container's hostname rather than the docker name.
-      // For simplicity here we match by GitHub runner name containing the docker id prefix.
-      const idPrefix = container.id.slice(0, 12);
-      const matched = this.findMatchingRunner(runnersByName, idPrefix);
-      if (!matched) {
-        // Container exists but hasn't registered yet (still booting).
-        // Don't reap — give it time.
+    for (const { scope, containers: scopeContainers } of byScope.values()) {
+      let runnersByName: Map<string, Runner>;
+      try {
+        const runners = await this.github.listRunners(scope);
+        runnersByName = new Map<string, Runner>();
+        for (const r of runners) runnersByName.set(r.name, r);
+      } catch (err) {
+        log.error({ err, scope: scopeKey(scope) }, "reaper: listRunners failed; skipping scope this tick");
+        for (const c of scopeContainers) seen.add(c.name);
+        continue;
+      }
+
+      for (const container of scopeContainers) {
         seen.add(container.name);
-        this.firstIdleAt.delete(container.name);
-        continue;
-      }
-      seen.add(container.name);
 
-      if (matched.busy) {
-        // Active job → reset idle timer
-        this.firstIdleAt.delete(container.name);
-        continue;
-      }
+        // GitHub runner name includes the container's 12-char id suffix
+        // (hostname | tail -c 13 in entrypoint.sh).
+        const idPrefix = container.id.slice(0, 12);
+        const matched = this.findMatchingRunner(runnersByName, idPrefix);
 
-      // Idle. Did we record when it became idle?
-      const since = this.firstIdleAt.get(container.name);
-      if (since === undefined) {
-        this.firstIdleAt.set(container.name, now);
-        continue;
-      }
+        if (!matched) {
+          // Container exists but hasn't registered yet (still booting). Give it time.
+          this.firstIdleAt.delete(container.name);
+          continue;
+        }
 
-      const idleFor = now - since;
-      if (idleFor >= this.config.pool.idleTimeoutMs) {
-        log.info({ container: container.name, runner_id: matched.id, idle_for_ms: idleFor }, "reaping idle runner");
-        await this.reap(container, matched);
-        this.firstIdleAt.delete(container.name);
+        if (matched.busy) {
+          // Active job → reset idle timer
+          this.firstIdleAt.delete(container.name);
+          continue;
+        }
+
+        // Idle. Record first-idle or check elapsed.
+        const since = this.firstIdleAt.get(container.name);
+        if (since === undefined) {
+          this.firstIdleAt.set(container.name, now);
+          continue;
+        }
+
+        const idleFor = now - since;
+        if (idleFor >= this.config.pool.idleTimeoutMs) {
+          log.info(
+            { container: container.name, runner_id: matched.id, idle_for_ms: idleFor, scope: scopeKey(scope) },
+            "reaping idle runner",
+          );
+          await this.reap(scope, container, matched);
+          this.firstIdleAt.delete(container.name);
+        }
       }
     }
 
@@ -102,17 +137,16 @@ export class Reaper {
     }
   }
 
-  private findMatchingRunner(runnersByName: Map<string, OrgRunner>, idPrefix: string): OrgRunner | undefined {
+  private findMatchingRunner(runnersByName: Map<string, Runner>, idPrefix: string): Runner | undefined {
     for (const r of runnersByName.values()) {
       if (r.name.includes(idPrefix)) return r;
     }
     return undefined;
   }
 
-  private async reap(container: ManagedContainer, runner: OrgRunner): Promise<void> {
-    // Stop the container — entrypoint trap deregisters from GitHub
+  private async reap(scope: Scope, container: ManagedContainer, runner: Runner): Promise<void> {
     await this.docker.stopGracefully(container.id);
     // Belt-and-suspenders: ensure GitHub-side cleanup if the trap didn't work
-    await this.github.removeRunner(runner.id);
+    await this.github.removeRunner(scope, runner.id);
   }
 }

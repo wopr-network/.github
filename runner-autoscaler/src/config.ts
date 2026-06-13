@@ -1,5 +1,10 @@
 // Env var parsing + validation. Fail-closed: any required var missing → throw on boot.
 
+export interface RepoRef {
+  owner: string;
+  repo: string;
+}
+
 export interface Config {
   vault: {
     addr: string;
@@ -7,7 +12,12 @@ export interface Config {
     secretId: string;
   };
   github: {
+    /** Primary org. Webhooks from this org get org-scoped runners. */
     org: string;
+    /** Additional repo scopes. Webhooks from these repos get repo-scoped runners. */
+    repos: RepoRef[];
+    /** Vault field on shared/github holding the PAT used for repo-scoped registrations. */
+    repoPatField: string;
   };
   listener: {
     port: number;
@@ -19,7 +29,17 @@ export interface Config {
     maxRunners: number;
     idleTimeoutMs: number;
     reaperIntervalMs: number;
+    /**
+     * Poll interval for the reconciliation loop that recovers from missed
+     * workflow_job:queued webhooks. Set <= 0 to disable.
+     */
+    reconcilerIntervalMs: number;
     runnerNetwork: string;
+    /**
+     * Host path to a Vault-rendered GitHub writer token mounted read-only into
+     * runner containers. Empty disables the mount.
+     */
+    runnerVaultGithubPatFile: string;
   };
 }
 
@@ -45,6 +65,21 @@ function intEnv(name: string, fallback: number): number {
   return parsed;
 }
 
+export function parseRepos(raw: string | undefined): RepoRef[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const parts = entry.split("/");
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        throw new Error(`Invalid GITHUB_REPOS entry: "${entry}" (expected "owner/repo")`);
+      }
+      return { owner: parts[0], repo: parts[1] };
+    });
+}
+
 export function loadConfig(): Config {
   return {
     vault: {
@@ -54,6 +89,8 @@ export function loadConfig(): Config {
     },
     github: {
       org: required("GITHUB_ORG"),
+      repos: parseRepos(process.env["GITHUB_REPOS"]),
+      repoPatField: optional("GITHUB_REPO_PAT_FIELD", "ops_pat"),
     },
     listener: {
       port: intEnv("LISTENER_PORT", 3000),
@@ -68,7 +105,9 @@ export function loadConfig(): Config {
       maxRunners: intEnv("MAX_RUNNERS", 10),
       idleTimeoutMs: intEnv("IDLE_TIMEOUT_MINUTES", 10) * 60 * 1000,
       reaperIntervalMs: intEnv("REAPER_INTERVAL_SECONDS", 60) * 1000,
+      reconcilerIntervalMs: intEnv("RECONCILER_INTERVAL_SECONDS", 60) * 1000,
       runnerNetwork: optional("RUNNER_NETWORK", "github-runners_runner-network"),
+      runnerVaultGithubPatFile: optional("RUNNER_VAULT_GITHUB_PAT_FILE", ""),
     },
   };
 }

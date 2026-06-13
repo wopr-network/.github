@@ -1,5 +1,8 @@
+import type { WorkflowJobEvent } from "@octokit/webhooks-types";
 import { describe, expect, it } from "vitest";
-import { poolMatchesJob } from "./webhook.js";
+import type { RepoRef } from "./config.js";
+import { scopeKey } from "./scope.js";
+import { poolMatchesJob, resolveScope } from "./webhook.js";
 
 describe("poolMatchesJob", () => {
   const pool = ["self-hosted", "Linux", "X64"];
@@ -34,5 +37,75 @@ describe("poolMatchesJob", () => {
 
   it("returns true when both pool and job are empty", () => {
     expect(poolMatchesJob([], [])).toBe(true);
+  });
+});
+
+/**
+ * Narrow helper to build a workflow_job.queued payload with only the fields
+ * resolveScope inspects. Casting to WorkflowJobEvent keeps the typechecker
+ * honest without forcing us to construct every field in the real type.
+ */
+function makeEvent(args: { repoFullName?: string; orgLogin?: string }): WorkflowJobEvent {
+  const event: Record<string, unknown> = { action: "queued", workflow_job: { labels: [] } };
+  if (args.repoFullName) {
+    event["repository"] = { full_name: args.repoFullName };
+  }
+  if (args.orgLogin) {
+    event["organization"] = { login: args.orgLogin };
+  }
+  return event as unknown as WorkflowJobEvent;
+}
+
+describe("resolveScope", () => {
+  const primaryOrg = "wopr-network";
+  const configuredRepos: RepoRef[] = [
+    { owner: "TSavo", repo: "nefariousplan" },
+    { owner: "TSavo", repo: "otherrepo" },
+  ];
+
+  it("returns org scope when the event is from the primary org and no configured repo matches", () => {
+    const event = makeEvent({ repoFullName: "wopr-network/platform", orgLogin: primaryOrg });
+    const scope = resolveScope(event, primaryOrg, configuredRepos);
+    expect(scope).toEqual({ kind: "org", org: primaryOrg });
+  });
+
+  it("returns repo scope when the event's repo is in configuredRepos", () => {
+    const event = makeEvent({ repoFullName: "TSavo/nefariousplan" });
+    const scope = resolveScope(event, primaryOrg, configuredRepos);
+    expect(scope).toEqual({ kind: "repo", owner: "TSavo", repo: "nefariousplan" });
+  });
+
+  it("prefers repo scope over org scope when both would match (configured repo wins)", () => {
+    // Edge case: a repo could technically exist in both the org and the configured repo list.
+    // Configured-repo match is more specific so it wins.
+    const event = makeEvent({ repoFullName: "TSavo/nefariousplan", orgLogin: primaryOrg });
+    const scope = resolveScope(event, primaryOrg, configuredRepos);
+    expect(scope?.kind).toBe("repo");
+  });
+
+  it("returns null when the event is from an unknown org and unknown repo", () => {
+    const event = makeEvent({ repoFullName: "someone-else/whatever", orgLogin: "other-org" });
+    expect(resolveScope(event, primaryOrg, configuredRepos)).toBeNull();
+  });
+
+  it("returns null when the event has no repository or organization at all", () => {
+    const event = makeEvent({});
+    expect(resolveScope(event, primaryOrg, configuredRepos)).toBeNull();
+  });
+
+  it("is case-sensitive on owner/repo matching (matches GitHub's canonical casing)", () => {
+    // GitHub's full_name uses the repo's canonical casing. If configured with "TSavo" but
+    // event says "tsavo", we treat them as different — caller should normalize if needed.
+    const event = makeEvent({ repoFullName: "tsavo/nefariousplan" });
+    expect(resolveScope(event, primaryOrg, configuredRepos)).toBeNull();
+  });
+});
+
+describe("scopeKey", () => {
+  it("formats org scope", () => {
+    expect(scopeKey({ kind: "org", org: "wopr-network" })).toBe("org:wopr-network");
+  });
+  it("formats repo scope", () => {
+    expect(scopeKey({ kind: "repo", owner: "TSavo", repo: "nefariousplan" })).toBe("repo:TSavo/nefariousplan");
   });
 });
