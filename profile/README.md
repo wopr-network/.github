@@ -4,17 +4,17 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-8d5a9932-3e81-4bdd-a878-40711531d51d)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-6ac09c31-1994-418d-9949-ef318bc7091d)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-b3cd5490-33bb-466d-9c28-c037d5b6f1cb)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-67f29255-6064-4bf9-9fb1-0df21aec41d0)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-6557b920-a17d-4984-9552-26c79f4d43ef" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-532f7da3-8ec0-4bc6-8bdc-b7d9e488eba4" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-bd0840a6-9ea9-45e7-ba53-a5b55edb3564" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-14601443-0525-4051-b23b-3fb3845a9358" width="400" alt="Issue States" />
 </p>
 
 
@@ -23,18 +23,7 @@
 
 | Repo | Total | Done | Open | Progress |
 |------|-------|------|------|----------|
-| wopr | 281 | 200 | 81 | 71% |
-| .github | 18 | 0 | 18 | 0% |
-| holyship | 16 | 15 | 1 | 94% |
-| platform-core | 11 | 11 | 0 | ✅ |
-| holyship-platform-ui | 10 | 10 | 0 | ✅ |
-| platform-ui-core | 3 | 3 | 0 | ✅ |
-| wopr-plugin-github | 3 | 0 | 3 | 0% |
-| nemoclaw-platform-ui | 3 | 0 | 3 | 0% |
-| paperclip-platform-ui | 2 | 0 | 2 | 0% |
-| nemoclaw | 1 | 0 | 1 | 0% |
-| nemoclaw-platform | 1 | 0 | 1 | 0% |
 
 ---
 
-**239** of **349** issues completed &bull; Updated 2026-06-24 08:24 UTC
+**0** of **0** issues completed &bull; Updated 2026-06-27 17:31 UTC
