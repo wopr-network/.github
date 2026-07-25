@@ -4,17 +4,17 @@
 
 ## Burn-Up
 
-![Burn-Up Chart](https://quickchart.io/chart/render/zf-68352c71-1e14-4f7b-bd88-e6b064daa150)
+![Burn-Up Chart](https://quickchart.io/chart/render/zf-6334dbf6-f819-4a45-9250-f245b86fe505)
 
 ## Velocity
 
-![Weekly Velocity](https://quickchart.io/chart/render/zf-23615c3b-b103-4cae-8523-d345df010f68)
+![Weekly Velocity](https://quickchart.io/chart/render/zf-f577074c-5db4-400d-beec-58e50941a7c0)
 
 ## Priority Distribution &nbsp; Issue States
 
 <p>
-<img src="https://quickchart.io/chart/render/zf-02b119a3-b8e5-41a8-a9d0-14880694fb4c" width="400" alt="Priority Distribution" />
-<img src="https://quickchart.io/chart/render/zf-c8b814bc-7f9a-42d6-9d3f-b79b52320a38" width="400" alt="Issue States" />
+<img src="https://quickchart.io/chart/render/zf-e0d533eb-4107-4b3c-9fce-22451433718b" width="400" alt="Priority Distribution" />
+<img src="https://quickchart.io/chart/render/zf-a7f697dc-9e56-4758-92be-7272f39b9573" width="400" alt="Issue States" />
 </p>
 
 
@@ -26,4 +26,4 @@
 
 ---
 
-**0** of **0** issues completed &bull; Updated 2026-07-25 16:59 UTC
+**0** of **0** issues completed &bull; Updated 2026-07-25 18:03 UTC
