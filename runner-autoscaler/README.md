@@ -31,6 +31,24 @@ State is **soft** — the listener crashes are recoverable: on boot it queries V
 
 So we want a *warm pool*: spin up on demand, keep warm for `IDLE_TIMEOUT_MINUTES`, kill cleanly when done.
 
+## Capacity: count ceiling + memory floor
+
+There is **no MIN_RUNNERS**. The pool is demand-driven (spawn on queue, reaper
+on idle). Two independent spawn refusals:
+
+| Gate | Env | Default | Meaning |
+| --- | --- | --- | --- |
+| Count | `MAX_RUNNERS` | **10** | Hard cap on alive managed containers |
+| Memory | `RUNNER_MEMORY_FLOOR_MB` + `RUNNER_ESTIMATED_MB` | **28672** + **3482** | Refuse if MemAvailable − est would drop below floor |
+
+**Why 10 (2026-08-02 thrash):** 25 × ~3.4GB ≈ 85GB demanded on a 62GB box
+(137% of RAM) → AnonPages 57GB, MemFree 1GB, 68% iowait, load 138, sshd could
+not finish auth. 10 × 3.4GB ≈ 34GB leaves ~28GB for recensus/floors/walls.
+Heavy work is single-process or k=8 — never needed 25 seats.
+
+A count limit alone is a guess (queue depth can still overfill RAM). The memory
+floor is the law: same shape as the measurement load gate.
+
 ## Secrets
 
 The autoscaler reads two things from `vault.wopr.bot` at boot via its scoped AppRole:
